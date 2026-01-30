@@ -6,10 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
+import { RelatorioFormModal } from '@/components/admin/RelatorioFormModal';
 
 export default function AdminRelatorios() {
   const [relatorios] = useState<RelatorioPowerBI[]>(mockRelatorios);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const getClienteName = (id: string) => {
     return mockClientes.find(c => c.id_cliente === id)?.nome_cliente || '-';
@@ -55,7 +57,7 @@ export default function AdminRelatorios() {
           <h1 className="text-3xl font-bold text-foreground mb-2">Relatórios Power BI</h1>
           <p className="text-muted-foreground">Gerencie os relatórios embedados</p>
         </div>
-        <Button variant="hero">
+        <Button variant="hero" onClick={() => setIsModalOpen(true)}>
           <Plus className="w-4 h-4" />
           Novo Relatório
         </Button>
@@ -78,6 +80,8 @@ export default function AdminRelatorios() {
         onEdit={(row) => toast.info(`Editando: ${row.nome_relatorio}`)}
         onDelete={(row) => toast.error(`Excluir: ${row.nome_relatorio}`)}
       />
+
+      <RelatorioFormModal open={isModalOpen} onOpenChange={setIsModalOpen} />
     </div>
   );
 }

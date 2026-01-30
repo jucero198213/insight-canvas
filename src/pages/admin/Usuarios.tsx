@@ -6,10 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
+import { UsuarioFormModal } from '@/components/admin/UsuarioFormModal';
 
 export default function AdminUsuarios() {
   const [usuarios] = useState<Usuario[]>(mockUsuarios);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const getClienteName = (id: string) => {
     return mockClientes.find(c => c.id_cliente === id)?.nome_cliente || '-';
@@ -68,7 +70,7 @@ export default function AdminUsuarios() {
           <h1 className="text-3xl font-bold text-foreground mb-2">Usuários</h1>
           <p className="text-muted-foreground">Gerencie os usuários do sistema</p>
         </div>
-        <Button variant="hero">
+        <Button variant="hero" onClick={() => setIsModalOpen(true)}>
           <Plus className="w-4 h-4" />
           Novo Usuário
         </Button>
@@ -91,6 +93,8 @@ export default function AdminUsuarios() {
         onEdit={(row) => toast.info(`Editando: ${row.nome}`)}
         onDelete={(row) => toast.error(`Excluir: ${row.nome}`)}
       />
+
+      <UsuarioFormModal open={isModalOpen} onOpenChange={setIsModalOpen} />
     </div>
   );
 }

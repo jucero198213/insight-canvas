@@ -17,6 +17,9 @@ import AdminRelatorios from "./pages/admin/Relatorios";
 import AdminPermissoes from "./pages/admin/Permissoes";
 import AdminLogs from "./pages/admin/Logs";
 import Solucoes from "./pages/Solucoes";
+import Termos from "./pages/Termos";
+import Privacidade from "./pages/Privacidade";
+import Suporte from "./pages/Suporte";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +35,9 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/solucoes" element={<Solucoes />} />
+              <Route path="/termos" element={<Termos />} />
+              <Route path="/privacidade" element={<Privacidade />} />
+              <Route path="/suporte" element={<Suporte />} />
               <Route path="/login" element={<Login />} />
               <Route path="/portal" element={<Portal />} />
               
