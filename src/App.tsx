@@ -16,6 +16,7 @@ import AdminUsuarios from "./pages/admin/Usuarios";
 import AdminRelatorios from "./pages/admin/Relatorios";
 import AdminPermissoes from "./pages/admin/Permissoes";
 import AdminLogs from "./pages/admin/Logs";
+import Solucoes from "./pages/Solucoes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/solucoes" element={<Solucoes />} />
               <Route path="/login" element={<Login />} />
               <Route path="/portal" element={<Portal />} />
               
