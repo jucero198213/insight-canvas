@@ -6,10 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
+import { PermissaoFormModal } from '@/components/admin/PermissaoFormModal';
 
 export default function AdminPermissoes() {
   const [permissoes] = useState<PermissaoUsuarioRelatorio[]>(mockPermissoes);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const getUserName = (id: string) => {
     return mockUsuarios.find(u => u.id_usuario === id)?.nome || '-';
@@ -62,7 +64,7 @@ export default function AdminPermissoes() {
           <h1 className="text-3xl font-bold text-foreground mb-2">Permissões</h1>
           <p className="text-muted-foreground">Controle de acesso aos relatórios</p>
         </div>
-        <Button variant="hero">
+        <Button variant="hero" onClick={() => setIsModalOpen(true)}>
           <Plus className="w-4 h-4" />
           Nova Permissão
         </Button>
@@ -83,6 +85,8 @@ export default function AdminPermissoes() {
         data={filteredPermissoes}
         onDelete={(row) => toast.error(`Remover permissão: ${row.id_permissao}`)}
       />
+
+      <PermissaoFormModal open={isModalOpen} onOpenChange={setIsModalOpen} />
     </div>
   );
 }

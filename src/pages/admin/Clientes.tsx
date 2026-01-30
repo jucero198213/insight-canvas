@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
+import { ClienteFormModal } from '@/components/admin/ClienteFormModal';
 
 const columns = [
   { key: 'nome_cliente', header: 'Nome do Cliente' },
@@ -45,6 +46,7 @@ const columns = [
 export default function AdminClientes() {
   const [clientes] = useState<Cliente[]>(mockClientes);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const filteredClientes = clientes.filter(c =>
     c.nome_cliente.toLowerCase().includes(searchQuery.toLowerCase())
@@ -57,7 +59,7 @@ export default function AdminClientes() {
           <h1 className="text-3xl font-bold text-foreground mb-2">Clientes</h1>
           <p className="text-muted-foreground">Gerencie os tenants da plataforma</p>
         </div>
-        <Button variant="hero">
+        <Button variant="hero" onClick={() => setIsModalOpen(true)}>
           <Plus className="w-4 h-4" />
           Novo Cliente
         </Button>
@@ -80,6 +82,8 @@ export default function AdminClientes() {
         onEdit={(row) => toast.info(`Editando: ${row.nome_cliente}`)}
         onDelete={(row) => toast.error(`Excluir: ${row.nome_cliente}`)}
       />
+
+      <ClienteFormModal open={isModalOpen} onOpenChange={setIsModalOpen} />
     </div>
   );
 }
