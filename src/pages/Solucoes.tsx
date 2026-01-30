@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/contexts/TenantContext';
 import { 
   ArrowLeft, 
@@ -7,6 +8,7 @@ import {
   BarChart3, 
   Check, 
   Crown, 
+  Info,
   Shield, 
   Star, 
   Users, 
@@ -75,6 +77,7 @@ const plans = [
 
 export default function Solucoes() {
   const { tenant } = useTenant();
+  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   return (
@@ -198,6 +201,19 @@ export default function Solucoes() {
               );
             })}
           </div>
+
+          {/* Flexibility Message */}
+          <div className="mt-12 text-center">
+            <p className="text-muted-foreground text-base max-w-2xl mx-auto">
+              Os planos podem ser ajustados conforme a necessidade da sua empresa.
+            </p>
+          </div>
+
+          {/* Power BI Embedded Note */}
+          <div className="mt-8 flex items-center justify-center gap-2 text-sm text-muted-foreground/70">
+            <Info className="w-4 h-4" />
+            <span>A capacidade do Power BI Embedded é dimensionada conforme o plano contratado.</span>
+          </div>
         </div>
       </section>
 
@@ -212,10 +228,17 @@ export default function Solucoes() {
             para distribuir seus dashboards Power BI com segurança.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button variant="default" size="lg" onClick={() => navigate('/login')}>
-              Acessar Portal
-              <ArrowRight className="w-4 h-4" />
-            </Button>
+            {isAuthenticated ? (
+              <Button variant="default" size="lg" onClick={() => navigate('/portal')}>
+                Acessar Portal
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            ) : (
+              <Button variant="default" size="lg" onClick={() => navigate('/login')}>
+                Solicitar Acesso
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            )}
             <Button variant="outline" size="lg">
               Falar com Consultor
             </Button>
