@@ -29,8 +29,8 @@ export function CTA() {
               Começar Agora
               <ArrowRight className="w-5 h-5" />
             </Button>
-            <Button variant="outline-light" size="xl">
-              Agendar Demo
+            <Button variant="outline-light" size="xl" onClick={() => navigate('/solucoes')}>
+              Conhecer Planos
             </Button>
           </div>
 

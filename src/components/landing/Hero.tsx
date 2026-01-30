@@ -65,7 +65,7 @@ export function Hero() {
               Acessar Portal
               <ArrowRight className="w-5 h-5" />
             </Button>
-            <Button variant="outline-light" size="xl">
+            <Button variant="outline-light" size="xl" onClick={() => navigate('/solucoes')}>
               Conhecer Soluções
             </Button>
           </div>
