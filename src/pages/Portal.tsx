@@ -36,12 +36,12 @@ export default function Portal() {
 
     // Filter reports based on user permissions
     if (user) {
-      const userPermissions = mockPermissoes.filter(p => p.id_usuario === user.id_usuario);
+      const userPermissions = mockPermissoes.filter(p => p.id_usuario === user.id);
       const allowedReportIds = userPermissions.map(p => p.id_relatorio);
       
       // Admin sees all reports for their client
       const filteredReports = isAdmin 
-        ? mockRelatorios.filter(r => r.id_cliente === user.id_cliente)
+        ? mockRelatorios.filter(r => r.id_cliente === user.cliente_id)
         : mockRelatorios.filter(r => allowedReportIds.includes(r.id_relatorio));
       
       setReports(filteredReports);

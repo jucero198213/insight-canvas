@@ -1,41 +1,50 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useTenant } from '@/contexts/TenantContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { BarChart3, ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { BarChart3, ArrowLeft, Loader2, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function Login() {
   const { tenant } = useTenant();
-  const { login } = useAuth();
+  const { login, isAuthenticated, isLoading, error, clearError } = useAuth();
   const navigate = useNavigate();
+  const [isLoginInProgress, setIsLoginInProgress] = useState(false);
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/portal');
+    }
+  }, [isAuthenticated, navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  // Show error toast
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+    }
+  }, [error]);
+
+  const handleLogin = async () => {
+    setIsLoginInProgress(true);
+    clearError();
 
     try {
-      const success = await login(email, password);
+      const success = await login();
       if (success) {
         toast.success('Login realizado com sucesso!');
         navigate('/portal');
-      } else {
-        toast.error('Credenciais inválidas. Tente novamente.');
       }
-    } catch (error) {
-      toast.error('Erro ao realizar login. Tente novamente.');
+    } catch (err) {
+      console.error('Login error:', err);
     } finally {
-      setIsLoading(false);
+      setIsLoginInProgress(false);
     }
   };
+
+  const loading = isLoading || isLoginInProgress;
 
   return (
     <div className="min-h-screen flex">
@@ -61,10 +70,15 @@ export default function Login() {
           <p className="text-xl text-primary-foreground/70 max-w-md">
             Acesse seus dashboards Power BI de forma segura e personalizada.
           </p>
+
+          <div className="mt-12 flex items-center gap-3 text-primary-foreground/60">
+            <ShieldCheck className="w-5 h-5" />
+            <span className="text-sm">Autenticação segura via Microsoft Entra ID</span>
+          </div>
         </div>
       </div>
 
-      {/* Right Panel - Login Form */}
+      {/* Right Panel - Login */}
       <div className="flex-1 flex items-center justify-center p-8 bg-background">
         <div className="w-full max-w-md">
           <Button
@@ -86,71 +100,66 @@ export default function Login() {
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-foreground mb-2">Entrar</h2>
             <p className="text-muted-foreground">
-              Digite suas credenciais para acessar o portal
+              Clique no botão abaixo para autenticar com sua conta Microsoft
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="h-12"
-              />
-            </div>
+          {error && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="h-12 pr-12"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+          <Button 
+            onClick={handleLogin} 
+            variant="hero" 
+            size="xl" 
+            className="w-full" 
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Autenticando...
+              </>
+            ) : (
+              <>
+                <svg 
+                  className="w-5 h-5 mr-2" 
+                  viewBox="0 0 21 21" 
+                  fill="none" 
+                  xmlns="http://www.w3.org/2000/svg"
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
-            </div>
-
-            <Button type="submit" variant="hero" size="xl" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Entrando...
-                </>
-              ) : (
-                'Entrar'
-              )}
-            </Button>
-          </form>
+                  <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
+                  <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
+                  <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
+                  <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+                </svg>
+                Entrar com Microsoft
+              </>
+            )}
+          </Button>
 
           <div className="mt-8 p-4 rounded-xl bg-muted/50 border border-border">
-            <p className="text-sm text-muted-foreground mb-2">
-              <strong>Credenciais de teste:</strong>
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Admin: admin@analyticspro.com<br />
-              Usuário: user@empresa.com<br />
-              Senha: qualquer (min. 6 caracteres)
-            </p>
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="w-5 h-5 text-accent mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-foreground mb-1">
+                  Autenticação Empresarial
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Utilize sua conta corporativa Microsoft para acessar o portal. 
+                  Suas credenciais são verificadas diretamente pelo Microsoft Entra ID.
+                </p>
+              </div>
+            </div>
           </div>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            Autenticação segura via Azure AD B2C
+            Problemas para acessar?{' '}
+            <a href="/suporte" className="text-accent hover:underline">
+              Fale com o suporte
+            </a>
           </p>
         </div>
       </div>
