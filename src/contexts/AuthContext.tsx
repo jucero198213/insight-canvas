@@ -1,13 +1,14 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAzureAuth, AuthUser } from '@/hooks/useAzureAuth';
-import { initializeMsal } from '@/lib/msal-config';
+import { initializeMsal, isMsalInitialized } from '@/lib/msal-config';
 
 interface AuthContextType {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
   isLoading: boolean;
+  isMsalReady: boolean;
   error: string | null;
   login: () => Promise<boolean>;
   logout: () => Promise<void>;
@@ -19,20 +20,30 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [isMsalReady, setIsMsalReady] = useState(false);
+  const initStarted = useRef(false);
   const { loginWithAzure, logoutFromAzure, silentLogin, error, setError } = useAzureAuth();
 
-  // Initialize MSAL and check for existing session
+  // Initialize MSAL once on mount
   useEffect(() => {
+    // Prevent double initialization in React StrictMode
+    if (initStarted.current) return;
+    initStarted.current = true;
+
     const initialize = async () => {
       try {
+        console.info("[AuthContext] Starting MSAL initialization...");
+        
+        // Initialize MSAL with retry logic
         await initializeMsal();
-        setIsInitialized(true);
+        setIsMsalReady(true);
+        console.info("[AuthContext] MSAL ready");
 
         // Check for existing Supabase session
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session) {
+          console.info("[AuthContext] Existing session found, validating...");
           // Validate session and get user info from backend
           const { data } = await supabase.functions.invoke("azure-auth", {
             body: { action: "get-user" },
@@ -40,19 +51,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           if (data?.success && data.user) {
             setUser(data.user);
+            console.info("[AuthContext] Session validated");
           } else {
             // Session invalid, clear it
+            console.warn("[AuthContext] Session invalid, signing out");
             await supabase.auth.signOut();
           }
-        } else {
-          // Try silent Azure login
+        } else if (isMsalInitialized()) {
+          // Try silent Azure login only if MSAL is ready
+          console.info("[AuthContext] Attempting silent login...");
           const result = await silentLogin();
           if (result.success && result.user) {
             setUser(result.user);
+            console.info("[AuthContext] Silent login successful");
           }
         }
       } catch (err) {
-        console.error("Auth initialization error:", err);
+        console.error("[AuthContext] Initialization error:", err);
+        // Still mark as ready so user can attempt manual login
+        setIsMsalReady(true);
       } finally {
         setIsLoading(false);
       }
@@ -62,11 +79,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         if (event === 'SIGNED_OUT') {
           setUser(null);
         } else if (event === 'SIGNED_IN' && session) {
-          // Fetch user data on sign in
+          // Defer Supabase call to avoid deadlock
           setTimeout(async () => {
             const { data } = await supabase.functions.invoke("azure-auth", {
               body: { action: "get-user" },
@@ -83,8 +100,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [silentLogin]);
 
   const login = async (): Promise<boolean> => {
-    if (!isInitialized) {
-      setError("Sistema de autenticação não inicializado");
+    if (!isMsalReady) {
+      setError("Sistema de autenticação ainda está carregando. Por favor, aguarde.");
       return false;
     }
 
@@ -128,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!user,
         isAdmin: user?.is_admin ?? false,
         isLoading,
+        isMsalReady,
         error,
         login,
         logout,

@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
-import { msalInstance, loginRequest } from "@/lib/msal-config";
+import { msalInstance, loginRequest, isMsalInitialized } from "@/lib/msal-config";
 import { supabase } from "@/integrations/supabase/client";
+import { BrowserAuthError } from "@azure/msal-browser";
 
 export interface AuthUser {
   id: string;
@@ -24,23 +25,39 @@ interface LoginResult {
   };
 }
 
+const MAX_LOGIN_RETRIES = 2;
+const RETRY_DELAY = 1500;
+
 export function useAzureAuth() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loginWithAzure = useCallback(async (clienteId?: string): Promise<LoginResult> => {
+  const loginWithAzure = useCallback(async (clienteId?: string, retryCount = 0): Promise<LoginResult> => {
     setIsLoading(true);
     setError(null);
 
+    // Check MSAL initialization
+    if (!isMsalInitialized()) {
+      const errorMsg = "Sistema de autenticação não inicializado. Aguarde ou recarregue a página.";
+      setError(errorMsg);
+      setIsLoading(false);
+      return { success: false, error: errorMsg };
+    }
+
     try {
-      // Use popup for login (better UX than redirect)
-      const loginResponse = await msalInstance.loginPopup(loginRequest);
+      console.info("[Auth] Starting Azure login popup...");
+      
+      // Use popup for login
+      const loginResponse = await msalInstance.loginPopup({
+        ...loginRequest,
+        prompt: "select_account",
+      });
       
       if (!loginResponse?.idToken) {
         throw new Error("No ID token received from Azure");
       }
 
-      console.log("Azure login successful, validating with backend...");
+      console.info("[Auth] Azure login successful, validating with backend...");
 
       // Call edge function to validate token and get/create user
       const { data, error: functionError } = await supabase.functions.invoke("azure-auth", {
@@ -76,18 +93,40 @@ export function useAzureAuth() {
       if (data.session_token) {
         await supabase.auth.setSession({
           access_token: data.session_token,
-          refresh_token: "", // Will be refreshed by Supabase
+          refresh_token: "",
         });
       }
 
+      console.info("[Auth] Login complete");
       return {
         success: true,
         user: data.user,
       };
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Login failed";
+      console.error("[Auth] Login error:", err);
+      
+      // Handle timeout errors with retry
+      if (
+        err instanceof BrowserAuthError &&
+        (err.errorCode === "monitor_window_timeout" || err.errorCode === "popup_window_error") &&
+        retryCount < MAX_LOGIN_RETRIES
+      ) {
+        console.warn(`[Auth] Popup timeout, retrying (${retryCount + 1}/${MAX_LOGIN_RETRIES})...`);
+        setIsLoading(false);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        return loginWithAzure(clienteId, retryCount + 1);
+      }
+      
+      // User cancelled popup
+      if (err instanceof BrowserAuthError && err.errorCode === "user_cancelled") {
+        setError(null);
+        setIsLoading(false);
+        return { success: false, error: "Login cancelado pelo usuário" };
+      }
+      
+      const errorMessage = err instanceof Error ? err.message : "Falha no login";
       setError(errorMessage);
-      console.error("Azure login error:", err);
+      setIsLoading(false);
       return { success: false, error: errorMessage };
     } finally {
       setIsLoading(false);
