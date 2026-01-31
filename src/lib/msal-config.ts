@@ -1,4 +1,4 @@
-import { Configuration, LogLevel, PublicClientApplication } from "@azure/msal-browser";
+import { Configuration, LogLevel, PublicClientApplication, BrowserAuthError } from "@azure/msal-browser";
 
 // Azure Entra External ID Configuration
 const msalConfig: Configuration = {
@@ -9,7 +9,7 @@ const msalConfig: Configuration = {
     postLogoutRedirectUri: window.location.origin,
   },
   cache: {
-    cacheLocation: "sessionStorage", // More secure than localStorage
+    cacheLocation: "sessionStorage",
   },
   system: {
     loggerOptions: {
@@ -17,16 +17,16 @@ const msalConfig: Configuration = {
         if (containsPii) return;
         switch (level) {
           case LogLevel.Error:
-            console.error(message);
+            console.error("[MSAL]", message);
             return;
           case LogLevel.Warning:
-            console.warn(message);
+            console.warn("[MSAL]", message);
             return;
           case LogLevel.Info:
-            console.info(message);
+            console.info("[MSAL]", message);
             return;
           case LogLevel.Verbose:
-            console.debug(message);
+            console.debug("[MSAL]", message);
             return;
         }
       },
@@ -40,21 +40,82 @@ export const loginRequest = {
   scopes: ["openid", "profile", "email"],
 };
 
-// Create and export MSAL instance
+// Singleton MSAL instance - created once at module load
 export const msalInstance = new PublicClientApplication(msalConfig);
 
-// Initialize MSAL
-export async function initializeMsal(): Promise<void> {
-  try {
-    await msalInstance.initialize();
-    
-    // Handle redirect promise (for redirect login flow)
-    const response = await msalInstance.handleRedirectPromise();
-    if (response) {
-      console.log("Redirect login successful");
-    }
-  } catch (error) {
-    console.error("MSAL initialization error:", error);
-    throw error;
+// Initialization state
+let initializationPromise: Promise<void> | null = null;
+let isInitialized = false;
+
+/**
+ * Initialize MSAL with retry logic for timeout errors
+ * Must be called before any authentication operations
+ */
+export async function initializeMsal(retryCount = 0): Promise<void> {
+  // Return existing promise if already initializing
+  if (initializationPromise) {
+    return initializationPromise;
   }
+
+  // Return immediately if already initialized
+  if (isInitialized) {
+    return Promise.resolve();
+  }
+
+  const MAX_RETRIES = 2;
+  const RETRY_DELAY = 1000;
+
+  initializationPromise = (async () => {
+    try {
+      console.info("[MSAL] Starting initialization...");
+      
+      // Initialize the MSAL instance
+      await msalInstance.initialize();
+      console.info("[MSAL] Instance initialized successfully");
+      
+      // Handle any pending redirect responses
+      const response = await msalInstance.handleRedirectPromise();
+      if (response) {
+        console.info("[MSAL] Redirect login response received");
+      }
+      
+      isInitialized = true;
+      console.info("[MSAL] Initialization complete");
+    } catch (error) {
+      console.error("[MSAL] Initialization error:", error);
+      
+      // Reset promise so we can retry
+      initializationPromise = null;
+      
+      // Check if it's a timeout error and we can retry
+      if (
+        error instanceof BrowserAuthError &&
+        error.errorCode === "monitor_window_timeout" &&
+        retryCount < MAX_RETRIES
+      ) {
+        console.warn(`[MSAL] Timeout error, retrying (${retryCount + 1}/${MAX_RETRIES})...`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        return initializeMsal(retryCount + 1);
+      }
+      
+      throw error;
+    }
+  })();
+
+  return initializationPromise;
+}
+
+/**
+ * Check if MSAL is initialized
+ */
+export function isMsalInitialized(): boolean {
+  return isInitialized;
+}
+
+/**
+ * Reset initialization state (for testing/error recovery)
+ */
+export function resetMsalInitialization(): void {
+  initializationPromise = null;
+  isInitialized = false;
 }

@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function Login() {
   const { tenant } = useTenant();
-  const { login, isAuthenticated, isLoading, error, clearError } = useAuth();
+  const { login, isAuthenticated, isLoading, isMsalReady, error, clearError } = useAuth();
   const navigate = useNavigate();
   const [isLoginInProgress, setIsLoginInProgress] = useState(false);
 
@@ -28,6 +28,11 @@ export default function Login() {
   }, [error]);
 
   const handleLogin = async () => {
+    if (!isMsalReady) {
+      toast.warning('Sistema de autenticação ainda está carregando. Aguarde...');
+      return;
+    }
+
     setIsLoginInProgress(true);
     clearError();
 
@@ -44,6 +49,8 @@ export default function Login() {
     }
   };
 
+  // Button is disabled while loading or MSAL not ready
+  const isButtonDisabled = isLoading || isLoginInProgress || !isMsalReady;
   const loading = isLoading || isLoginInProgress;
 
   return (
@@ -115,12 +122,17 @@ export default function Login() {
             variant="hero" 
             size="xl" 
             className="w-full" 
-            disabled={loading}
+            disabled={isButtonDisabled}
           >
             {loading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
                 Autenticando...
+              </>
+            ) : !isMsalReady ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Carregando...
               </>
             ) : (
               <>
