@@ -19,6 +19,17 @@ export interface Usuario {
   role?: 'admin' | 'user';
 }
 
+// New authenticated user type (from Azure Entra)
+export interface AuthenticatedUser {
+  id: string;
+  email: string;
+  nome: string;
+  cliente_id: string;
+  cliente_nome?: string;
+  roles: string[];
+  is_admin: boolean;
+}
+
 export interface RelatorioPowerBI {
   id_relatorio: string;
   id_cliente: string;
