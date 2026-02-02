@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAzureAuth, AuthUser } from '@/hooks/useAzureAuth';
-import { initializeMsal, isMsalInitialized } from '@/lib/msal-config';
+import { initializeMsal, isMsalInitialized, clearRedirectResult } from '@/lib/msal-config';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -22,9 +22,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isMsalReady, setIsMsalReady] = useState(false);
   const initStarted = useRef(false);
-  const { loginWithAzure, logoutFromAzure, silentLogin, error, setError } = useAzureAuth();
+  const { loginWithAzure, processAuthResult, logoutFromAzure, silentLogin, error, setError } = useAzureAuth();
 
-  // Initialize MSAL once on mount
+  // Initialize MSAL and handle redirect result on mount
   useEffect(() => {
     // Prevent double initialization in React StrictMode
     if (initStarted.current) return;
@@ -34,10 +34,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         console.info("[AuthContext] Starting MSAL initialization...");
         
-        // Initialize MSAL with retry logic
-        await initializeMsal();
+        // Initialize MSAL and get any pending redirect result
+        const redirectResult = await initializeMsal();
         setIsMsalReady(true);
-        console.info("[AuthContext] MSAL ready");
+        console.info("[AuthContext] MSAL ready, redirect result:", !!redirectResult);
+
+        // If we have a redirect result, process it first
+        if (redirectResult?.idToken) {
+          console.info("[AuthContext] Processing redirect login result...");
+          const result = await processAuthResult(redirectResult);
+          clearRedirectResult(); // Clear after processing
+          
+          if (result.success && result.user) {
+            setUser(result.user);
+            console.info("[AuthContext] Redirect login successful:", result.user.email);
+            setIsLoading(false);
+            return; // Done - user is authenticated via redirect
+          } else if (result.requiresRegistration) {
+            setError(result.error || "Usuário não cadastrado no sistema");
+          } else if (result.error) {
+            setError(result.error);
+          }
+        }
 
         // Check for existing Supabase session
         const { data: { session } } = await supabase.auth.getSession();
@@ -107,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     return () => subscription.unsubscribe();
-  }, [silentLogin]);
+  }, [processAuthResult, silentLogin, setError]);
 
   const login = async (): Promise<boolean> => {
     if (!isMsalReady) {
@@ -117,28 +135,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setIsLoading(true);
     try {
-      console.info("[AuthContext] Starting login...");
-      const result = await loginWithAzure();
-      
-      if (result.success && result.user) {
-        setUser(result.user);
-        console.info("[AuthContext] Login successful:", result.user.email);
-        return true;
-      }
-      
-      if (result.requiresRegistration) {
-        setError(result.error || "Usuário não cadastrado no sistema");
-      } else if (result.error) {
-        setError(result.error);
-      }
-      
-      return false;
+      console.info("[AuthContext] Starting login redirect...");
+      // This will redirect to Microsoft - page will navigate away
+      await loginWithAzure();
+      // If we get here, redirect was initiated
+      return false; // Will complete after redirect back
     } catch (err) {
       console.error("[AuthContext] Login error:", err);
       setError(err instanceof Error ? err.message : "Erro no login");
-      return false;
-    } finally {
       setIsLoading(false);
+      return false;
     }
   };
 

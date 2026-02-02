@@ -1,4 +1,4 @@
-import { Configuration, LogLevel, PublicClientApplication, BrowserAuthError } from "@azure/msal-browser";
+import { Configuration, LogLevel, PublicClientApplication, BrowserAuthError, AuthenticationResult } from "@azure/msal-browser";
 
 // Azure Entra External ID Configuration
 const msalConfig: Configuration = {
@@ -9,7 +9,7 @@ const msalConfig: Configuration = {
     postLogoutRedirectUri: window.location.origin,
   },
   cache: {
-    cacheLocation: "sessionStorage",
+    cacheLocation: "localStorage", // Use localStorage for redirect flow
   },
   system: {
     loggerOptions: {
@@ -44,22 +44,23 @@ export const loginRequest = {
 export const msalInstance = new PublicClientApplication(msalConfig);
 
 // Initialization state
-let initializationPromise: Promise<void> | null = null;
+let initializationPromise: Promise<AuthenticationResult | null> | null = null;
 let isInitialized = false;
+let redirectResult: AuthenticationResult | null = null;
 
 /**
- * Initialize MSAL with retry logic for timeout errors
- * Must be called before any authentication operations
+ * Initialize MSAL and handle any pending redirect
+ * Returns the redirect result if login was completed via redirect
  */
-export async function initializeMsal(retryCount = 0): Promise<void> {
+export async function initializeMsal(retryCount = 0): Promise<AuthenticationResult | null> {
   // Return existing promise if already initializing
   if (initializationPromise) {
     return initializationPromise;
   }
 
-  // Return immediately if already initialized
+  // Return cached result if already initialized
   if (isInitialized) {
-    return Promise.resolve();
+    return Promise.resolve(redirectResult);
   }
 
   const MAX_RETRIES = 2;
@@ -73,14 +74,19 @@ export async function initializeMsal(retryCount = 0): Promise<void> {
       await msalInstance.initialize();
       console.info("[MSAL] Instance initialized successfully");
       
-      // Handle any pending redirect responses
+      // Handle any pending redirect responses - THIS IS CRITICAL
       const response = await msalInstance.handleRedirectPromise();
       if (response) {
-        console.info("[MSAL] Redirect login response received");
+        console.info("[MSAL] Redirect login response received:", response.account?.username);
+        redirectResult = response;
+      } else {
+        console.info("[MSAL] No pending redirect response");
       }
       
       isInitialized = true;
       console.info("[MSAL] Initialization complete");
+      
+      return redirectResult;
     } catch (error) {
       console.error("[MSAL] Initialization error:", error);
       
@@ -113,9 +119,24 @@ export function isMsalInitialized(): boolean {
 }
 
 /**
+ * Get the cached redirect result
+ */
+export function getRedirectResult(): AuthenticationResult | null {
+  return redirectResult;
+}
+
+/**
+ * Clear the cached redirect result after processing
+ */
+export function clearRedirectResult(): void {
+  redirectResult = null;
+}
+
+/**
  * Reset initialization state (for testing/error recovery)
  */
 export function resetMsalInitialization(): void {
   initializationPromise = null;
   isInitialized = false;
+  redirectResult = null;
 }
