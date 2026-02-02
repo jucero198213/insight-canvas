@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAzureAuth, AuthUser } from '@/hooks/useAzureAuth';
-import { initializeMsal, isMsalInitialized, clearRedirectResult } from '@/lib/msal-config';
+import { isMsalInitialized, getRedirectResult, clearRedirectResult } from '@/lib/msal-config';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -24,7 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const initStarted = useRef(false);
   const { loginWithAzure, processAuthResult, logoutFromAzure, silentLogin, error, setError } = useAzureAuth();
 
-  // Initialize MSAL and handle redirect result on mount
+  // Handle redirect result and session on mount
   useEffect(() => {
     // Prevent double initialization in React StrictMode
     if (initStarted.current) return;
@@ -32,29 +32,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const initialize = async () => {
       try {
-        console.info("[AuthContext] Starting MSAL initialization...");
+        console.info("[AuthContext] Starting authentication check...");
         
-        // Initialize MSAL and get any pending redirect result
-        const redirectResult = await initializeMsal();
-        setIsMsalReady(true);
-        console.info("[AuthContext] MSAL ready, redirect result:", !!redirectResult);
+        // MSAL should already be initialized by main.tsx
+        // Check if there's a pending redirect result
+        const redirectResult = getRedirectResult();
+        const msalReady = isMsalInitialized();
+        
+        setIsMsalReady(msalReady);
+        console.info("[AuthContext] MSAL ready:", msalReady, "redirect result:", !!redirectResult);
 
         // If we have a redirect result, process it first
         if (redirectResult?.idToken) {
           console.info("[AuthContext] Processing redirect login result...");
-          const result = await processAuthResult(redirectResult);
-          clearRedirectResult(); // Clear after processing
-          
-          if (result.success && result.user) {
-            setUser(result.user);
-            console.info("[AuthContext] Redirect login successful:", result.user.email);
-            setIsLoading(false);
-            return; // Done - user is authenticated via redirect
-          } else if (result.requiresRegistration) {
-            setError(result.error || "Usuário não cadastrado no sistema");
-          } else if (result.error) {
-            setError(result.error);
+          try {
+            const result = await processAuthResult(redirectResult);
+            clearRedirectResult(); // Clear after processing
+            
+            if (result.success && result.user) {
+              setUser(result.user);
+              console.info("[AuthContext] Redirect login successful:", result.user.email);
+              setIsLoading(false);
+              return; // Done - user is authenticated via redirect
+            } else if (result.requiresRegistration) {
+              setError(result.error || "Usuário não cadastrado no sistema");
+            } else if (result.error) {
+              setError(result.error);
+            }
+          } catch (processError) {
+            console.error("[AuthContext] Error processing redirect result:", processError);
+            setError(processError instanceof Error ? processError.message : "Erro ao processar login");
           }
+          // Always clear loading after processing redirect, even on error
+          setIsLoading(false);
+          return;
         }
 
         // Check for existing Supabase session
@@ -76,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.warn("[AuthContext] Session invalid, signing out");
             await supabase.auth.signOut();
           }
-        } else if (isMsalInitialized()) {
+        } else if (msalReady) {
           // Try silent Azure login only if MSAL is ready and no Supabase session
           console.info("[AuthContext] No Supabase session, attempting silent Azure login...");
           const result = await silentLogin();
