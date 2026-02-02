@@ -17,6 +17,17 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: number | undefined;
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timer = window.setTimeout(() => reject(new Error(`${label}_timeout`)), ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timer !== undefined) window.clearTimeout(timer);
+  });
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,15 +49,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Check if there's a pending redirect result
         const redirectResult = getRedirectResult();
         const msalReady = isMsalInitialized();
-        
-        setIsMsalReady(msalReady);
+
+        // Important: never block UI indefinitely if MSAL init flag is false for any reason.
+        // main.tsx already attempts to initialize MSAL before rendering.
+        setIsMsalReady(true);
         console.info("[AuthContext] MSAL ready:", msalReady, "redirect result:", !!redirectResult);
 
         // If we have a redirect result, process it first
-        if (redirectResult?.idToken) {
+        if (redirectResult && (redirectResult.idToken || redirectResult.accessToken)) {
           console.info("[AuthContext] Processing redirect login result...");
           try {
-            const result = await processAuthResult(redirectResult);
+            // Never allow a hung backend call to freeze the UI.
+            const result = await withTimeout(
+              processAuthResult(redirectResult),
+              15000,
+              "process_redirect"
+            );
             clearRedirectResult(); // Clear after processing
             
             if (result.success && result.user) {
@@ -62,6 +80,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } catch (processError) {
             console.error("[AuthContext] Error processing redirect result:", processError);
             setError(processError instanceof Error ? processError.message : "Erro ao processar login");
+          } finally {
+            // Critical: ALWAYS clear the cached redirect result to avoid loops.
+            clearRedirectResult();
           }
           // Always clear loading after processing redirect, even on error
           setIsLoading(false);
@@ -69,15 +90,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         // Check for existing Supabase session
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await withTimeout(
+          supabase.auth.getSession(),
+          8000,
+          "get_session"
+        );
         
         if (session?.access_token) {
           console.info("[AuthContext] Existing Supabase session found, validating...");
           
           // Validate session and get user info from backend
-          const { data } = await supabase.functions.invoke("azure-auth", {
-            body: { action: "get-user" },
-          });
+          const { data } = await withTimeout(
+            supabase.functions.invoke("azure-auth", {
+              body: { action: "get-user" },
+            }),
+            8000,
+            "get_user"
+          );
 
           if (data?.success && data.user) {
             setUser(data.user);
@@ -85,12 +114,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } else {
             // Session invalid, clear it
             console.warn("[AuthContext] Session invalid, signing out");
-            await supabase.auth.signOut();
+            await withTimeout(supabase.auth.signOut(), 8000, "sign_out");
           }
         } else if (msalReady) {
           // Try silent Azure login only if MSAL is ready and no Supabase session
           console.info("[AuthContext] No Supabase session, attempting silent Azure login...");
-          const result = await silentLogin();
+          const result = await withTimeout(silentLogin(), 8000, "silent_login");
           if (result.success && result.user) {
             setUser(result.user);
             console.info("[AuthContext] Silent login successful:", result.user.email);
@@ -120,9 +149,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Defer Supabase call to avoid deadlock
           setTimeout(async () => {
             try {
-              const { data } = await supabase.functions.invoke("azure-auth", {
-                body: { action: "get-user" },
-              });
+              const { data } = await withTimeout(
+                supabase.functions.invoke("azure-auth", {
+                  body: { action: "get-user" },
+                }),
+                8000,
+                "get_user_after_signin"
+              );
               if (data?.success && data.user) {
                 setUser(data.user);
                 console.info("[AuthContext] User loaded after sign in:", data.user.email);
