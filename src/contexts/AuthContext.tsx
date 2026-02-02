@@ -42,8 +42,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Check for existing Supabase session
         const { data: { session } } = await supabase.auth.getSession();
         
-        if (session) {
-          console.info("[AuthContext] Existing session found, validating...");
+        if (session?.access_token) {
+          console.info("[AuthContext] Existing Supabase session found, validating...");
+          
           // Validate session and get user info from backend
           const { data } = await supabase.functions.invoke("azure-auth", {
             body: { action: "get-user" },
@@ -51,19 +52,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           if (data?.success && data.user) {
             setUser(data.user);
-            console.info("[AuthContext] Session validated");
+            console.info("[AuthContext] Session validated, user:", data.user.email);
           } else {
             // Session invalid, clear it
             console.warn("[AuthContext] Session invalid, signing out");
             await supabase.auth.signOut();
           }
         } else if (isMsalInitialized()) {
-          // Try silent Azure login only if MSAL is ready
-          console.info("[AuthContext] Attempting silent login...");
+          // Try silent Azure login only if MSAL is ready and no Supabase session
+          console.info("[AuthContext] No Supabase session, attempting silent Azure login...");
           const result = await silentLogin();
           if (result.success && result.user) {
             setUser(result.user);
-            console.info("[AuthContext] Silent login successful");
+            console.info("[AuthContext] Silent login successful:", result.user.email);
+          } else {
+            console.info("[AuthContext] Silent login not available:", result.error);
           }
         }
       } catch (err) {
@@ -80,16 +83,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.info("[AuthContext] Auth state changed:", event, !!session);
+        
         if (event === 'SIGNED_OUT') {
           setUser(null);
         } else if (event === 'SIGNED_IN' && session) {
           // Defer Supabase call to avoid deadlock
           setTimeout(async () => {
-            const { data } = await supabase.functions.invoke("azure-auth", {
-              body: { action: "get-user" },
-            });
-            if (data?.success && data.user) {
-              setUser(data.user);
+            try {
+              const { data } = await supabase.functions.invoke("azure-auth", {
+                body: { action: "get-user" },
+              });
+              if (data?.success && data.user) {
+                setUser(data.user);
+                console.info("[AuthContext] User loaded after sign in:", data.user.email);
+              }
+            } catch (err) {
+              console.error("[AuthContext] Error fetching user after sign in:", err);
             }
           }, 0);
         }
@@ -107,10 +117,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setIsLoading(true);
     try {
+      console.info("[AuthContext] Starting login...");
       const result = await loginWithAzure();
       
       if (result.success && result.user) {
         setUser(result.user);
+        console.info("[AuthContext] Login successful:", result.user.email);
         return true;
       }
       
@@ -120,6 +132,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setError(result.error);
       }
       
+      return false;
+    } catch (err) {
+      console.error("[AuthContext] Login error:", err);
+      setError(err instanceof Error ? err.message : "Erro no login");
       return false;
     } finally {
       setIsLoading(false);
@@ -131,6 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await logoutFromAzure();
       setUser(null);
+      console.info("[AuthContext] Logout complete");
     } finally {
       setIsLoading(false);
     }
@@ -138,20 +155,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearError = () => setError(null);
 
+  const value = {
+    user,
+    isAuthenticated: !!user,
+    isAdmin: user?.is_admin ?? false,
+    isLoading,
+    isMsalReady,
+    error,
+    login,
+    logout,
+    clearError,
+  };
+
+  console.debug("[AuthContext] State:", { 
+    isAuthenticated: !!user, 
+    isLoading, 
+    isMsalReady, 
+    userEmail: user?.email 
+  });
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        isAdmin: user?.is_admin ?? false,
-        isLoading,
-        isMsalReady,
-        error,
-        login,
-        logout,
-        clearError,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

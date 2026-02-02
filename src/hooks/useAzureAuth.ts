@@ -57,7 +57,8 @@ export function useAzureAuth() {
         throw new Error("No ID token received from Azure");
       }
 
-      console.info("[Auth] Azure login successful, validating with backend...");
+      console.info("[Auth] Azure popup successful, got idToken");
+      console.info("[Auth] Calling backend to validate token and create session...");
 
       // Call edge function to validate token and get/create user
       const { data, error: functionError } = await supabase.functions.invoke("azure-auth", {
@@ -70,8 +71,11 @@ export function useAzureAuth() {
       });
 
       if (functionError) {
+        console.error("[Auth] Edge function error:", functionError);
         throw new Error(functionError.message || "Authentication failed");
       }
+
+      console.info("[Auth] Backend response:", { success: data?.success, hasUser: !!data?.user, hasToken: !!data?.session_token });
 
       if (!data.success) {
         if (data.error === "registration_required") {
@@ -89,15 +93,27 @@ export function useAzureAuth() {
         throw new Error(data.error || "Authentication failed");
       }
 
-      // Set Supabase session if we got a token
+      // Set Supabase session with the token from backend
       if (data.session_token) {
-        await supabase.auth.setSession({
+        console.info("[Auth] Setting Supabase session with backend token...");
+        
+        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
           access_token: data.session_token,
-          refresh_token: "",
+          refresh_token: data.refresh_token || "",
         });
+
+        if (sessionError) {
+          console.error("[Auth] Failed to set Supabase session:", sessionError);
+          throw new Error("Failed to create local session");
+        }
+
+        console.info("[Auth] Supabase session created successfully:", !!sessionData.session);
+      } else {
+        console.warn("[Auth] No session_token received from backend");
       }
 
-      console.info("[Auth] Login complete");
+      console.info("[Auth] Login complete, user:", data.user?.email);
+      
       return {
         success: true,
         user: data.user,
@@ -135,8 +151,11 @@ export function useAzureAuth() {
 
   const logoutFromAzure = useCallback(async (): Promise<void> => {
     try {
-      // Sign out from Supabase
+      console.info("[Auth] Logging out...");
+      
+      // Sign out from Supabase first
       await supabase.auth.signOut();
+      console.info("[Auth] Supabase session cleared");
 
       // Sign out from Azure (clear MSAL cache)
       const accounts = msalInstance.getAllAccounts();
@@ -145,16 +164,20 @@ export function useAzureAuth() {
           account: accounts[0],
           postLogoutRedirectUri: window.location.origin,
         });
+        console.info("[Auth] MSAL logout complete");
       }
     } catch (err) {
-      console.error("Logout error:", err);
+      console.error("[Auth] Logout error:", err);
     }
   }, []);
 
   const silentLogin = useCallback(async (): Promise<LoginResult> => {
     try {
+      console.info("[Auth] Attempting silent token acquisition...");
+      
       const accounts = msalInstance.getAllAccounts();
       if (accounts.length === 0) {
+        console.info("[Auth] No cached Azure accounts found");
         return { success: false, error: "No active Azure session" };
       }
 
@@ -165,8 +188,11 @@ export function useAzureAuth() {
       });
 
       if (!silentResponse?.idToken) {
+        console.warn("[Auth] Silent acquisition returned no token");
         return { success: false, error: "Failed to acquire token silently" };
       }
+
+      console.info("[Auth] Silent token acquired, validating with backend...");
 
       // Validate with backend
       const { data, error: functionError } = await supabase.functions.invoke("azure-auth", {
@@ -177,19 +203,27 @@ export function useAzureAuth() {
       });
 
       if (functionError || !data.success) {
+        console.warn("[Auth] Backend validation failed:", data?.error || functionError);
         return { success: false, error: data?.error || "Session validation failed" };
       }
 
+      // Set Supabase session
       if (data.session_token) {
-        await supabase.auth.setSession({
+        const { error: sessionError } = await supabase.auth.setSession({
           access_token: data.session_token,
-          refresh_token: "",
+          refresh_token: data.refresh_token || "",
         });
+
+        if (sessionError) {
+          console.error("[Auth] Failed to set session after silent login:", sessionError);
+          return { success: false, error: "Failed to create session" };
+        }
       }
 
+      console.info("[Auth] Silent login successful:", data.user?.email);
       return { success: true, user: data.user };
     } catch (err) {
-      console.error("Silent login failed:", err);
+      console.error("[Auth] Silent login failed:", err);
       return { success: false, error: "Silent login failed" };
     }
   }, []);

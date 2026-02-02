@@ -155,25 +155,14 @@ Deno.serve(async (req) => {
           );
 
           let sessionToken: string;
+          let refreshToken: string;
 
           if (authUser?.user) {
-            // Generate a session for existing user
-            const { data: session, error: sessionError } =
-              await supabaseAdmin.auth.admin.generateLink({
-                type: "magiclink",
-                email: existingUsuario.email,
-              });
-
-            if (sessionError) {
-              console.error("Error generating session:", sessionError);
-              throw new Error("Failed to create session");
-            }
-
-            // Create a custom session
+            // Sign in user with OID as password
             const { data: signInData, error: signInError } =
               await supabaseAdmin.auth.signInWithPassword({
                 email: existingUsuario.email,
-                password: azurePayload.oid, // Use OID as password (set during user creation)
+                password: azurePayload.oid,
               });
 
             if (signInError) {
@@ -191,8 +180,10 @@ Deno.serve(async (req) => {
 
               if (retryError) throw new Error("Failed to authenticate user");
               sessionToken = retryData.session?.access_token || "";
+              refreshToken = retryData.session?.refresh_token || "";
             } else {
               sessionToken = signInData.session?.access_token || "";
+              refreshToken = signInData.session?.refresh_token || "";
             }
           } else {
             throw new Error("Auth user not found. Please contact support.");
@@ -216,6 +207,7 @@ Deno.serve(async (req) => {
                 is_admin: isAdmin,
               },
               session_token: sessionToken,
+              refresh_token: refreshToken,
             }),
             {
               headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -325,6 +317,7 @@ Deno.serve(async (req) => {
               is_admin: false,
             },
             session_token: signInData?.session?.access_token || "",
+            refresh_token: signInData?.session?.refresh_token || "",
             is_new_user: true,
           }),
           {
