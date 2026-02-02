@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { msalInstance, loginRequest, isMsalInitialized } from "@/lib/msal-config";
 import { supabase } from "@/integrations/supabase/client";
-import { BrowserAuthError } from "@azure/msal-browser";
+import { AuthenticationResult } from "@azure/msal-browser";
 
 export interface AuthUser {
   id: string;
@@ -25,18 +25,18 @@ interface LoginResult {
   };
 }
 
-const MAX_LOGIN_RETRIES = 2;
-const RETRY_DELAY = 1500;
-
 export function useAzureAuth() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loginWithAzure = useCallback(async (clienteId?: string, retryCount = 0): Promise<LoginResult> => {
+  /**
+   * Initiate login via redirect (not popup)
+   * The result will be handled by handleRedirectPromise in AuthContext
+   */
+  const loginWithAzure = useCallback(async (): Promise<LoginResult> => {
     setIsLoading(true);
     setError(null);
 
-    // Check MSAL initialization
     if (!isMsalInitialized()) {
       const errorMsg = "Sistema de autenticação não inicializado. Aguarde ou recarregue a página.";
       setError(errorMsg);
@@ -45,28 +45,60 @@ export function useAzureAuth() {
     }
 
     try {
-      console.info("[Auth] Starting Azure login popup...");
+      console.info("[Auth] Initiating Azure login redirect...");
       
-      // Use popup for login
-      const loginResponse = await msalInstance.loginPopup({
+      // Use redirect instead of popup - this will navigate away from the page
+      // Note: This may throw timeout errors in some sandboxed environments
+      // but the redirect should still work
+      msalInstance.loginRedirect({
         ...loginRequest,
         prompt: "select_account",
       });
       
-      if (!loginResponse?.idToken) {
-        throw new Error("No ID token received from Azure");
+      // This code may or may not execute - page should redirect to Microsoft
+      // The timeout error is expected in iframe/sandboxed environments
+      return { success: false, error: "Redirecting to Microsoft..." };
+    } catch (err: unknown) {
+      console.error("[Auth] Login redirect error:", err);
+      
+      // Check if this is a timeout error - the redirect may still work
+      if (err instanceof Error && 'errorCode' in err) {
+        const msalError = err as { errorCode: string; subError?: string };
+        if (msalError.errorCode === "timed_out" || msalError.subError === "redirect_bridge_timeout") {
+          console.warn("[Auth] Redirect timeout - this is expected in sandboxed environments. Redirect should still proceed.");
+          // Don't show error to user - redirect might still work
+          return { success: false, error: "Redirecionando..." };
+        }
+      }
+      
+      const errorMessage = err instanceof Error ? err.message : "Falha ao iniciar login";
+      setError(errorMessage);
+      setIsLoading(false);
+      return { success: false, error: errorMessage };
+    }
+  }, []);
+
+  /**
+   * Process the authentication result from redirect
+   * Called by AuthContext after handleRedirectPromise returns a result
+   */
+  const processAuthResult = useCallback(async (authResult: AuthenticationResult): Promise<LoginResult> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      if (!authResult?.idToken) {
+        throw new Error("No ID token in authentication result");
       }
 
-      console.info("[Auth] Azure popup successful, got idToken");
-      console.info("[Auth] Calling backend to validate token and create session...");
+      console.info("[Auth] Processing redirect result, calling backend...");
 
       // Call edge function to validate token and get/create user
       const { data, error: functionError } = await supabase.functions.invoke("azure-auth", {
         body: {
           action: "login",
-          id_token: loginResponse.idToken,
-          access_token: loginResponse.accessToken,
-          cliente_id: clienteId,
+          id_token: authResult.idToken,
+          access_token: authResult.accessToken,
         },
       });
 
@@ -75,7 +107,11 @@ export function useAzureAuth() {
         throw new Error(functionError.message || "Authentication failed");
       }
 
-      console.info("[Auth] Backend response:", { success: data?.success, hasUser: !!data?.user, hasToken: !!data?.session_token });
+      console.info("[Auth] Backend response:", { 
+        success: data?.success, 
+        hasUser: !!data?.user, 
+        hasToken: !!data?.session_token 
+      });
 
       if (!data.success) {
         if (data.error === "registration_required") {
@@ -95,9 +131,9 @@ export function useAzureAuth() {
 
       // Set Supabase session with the token from backend
       if (data.session_token) {
-        console.info("[Auth] Setting Supabase session with backend token...");
+        console.info("[Auth] Setting Supabase session...");
         
-        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+        const { error: sessionError } = await supabase.auth.setSession({
           access_token: data.session_token,
           refresh_token: data.refresh_token || "",
         });
@@ -107,42 +143,19 @@ export function useAzureAuth() {
           throw new Error("Failed to create local session");
         }
 
-        console.info("[Auth] Supabase session created successfully:", !!sessionData.session);
-      } else {
-        console.warn("[Auth] No session_token received from backend");
+        console.info("[Auth] Supabase session created successfully");
       }
 
-      console.info("[Auth] Login complete, user:", data.user?.email);
+      console.info("[Auth] Login complete:", data.user?.email);
       
       return {
         success: true,
         user: data.user,
       };
     } catch (err) {
-      console.error("[Auth] Login error:", err);
-      
-      // Handle timeout errors with retry
-      if (
-        err instanceof BrowserAuthError &&
-        (err.errorCode === "monitor_window_timeout" || err.errorCode === "popup_window_error") &&
-        retryCount < MAX_LOGIN_RETRIES
-      ) {
-        console.warn(`[Auth] Popup timeout, retrying (${retryCount + 1}/${MAX_LOGIN_RETRIES})...`);
-        setIsLoading(false);
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-        return loginWithAzure(clienteId, retryCount + 1);
-      }
-      
-      // User cancelled popup
-      if (err instanceof BrowserAuthError && err.errorCode === "user_cancelled") {
-        setError(null);
-        setIsLoading(false);
-        return { success: false, error: "Login cancelado pelo usuário" };
-      }
-      
+      console.error("[Auth] Process auth result error:", err);
       const errorMessage = err instanceof Error ? err.message : "Falha no login";
       setError(errorMessage);
-      setIsLoading(false);
       return { success: false, error: errorMessage };
     } finally {
       setIsLoading(false);
@@ -157,14 +170,13 @@ export function useAzureAuth() {
       await supabase.auth.signOut();
       console.info("[Auth] Supabase session cleared");
 
-      // Sign out from Azure (clear MSAL cache)
+      // Sign out from Azure via redirect
       const accounts = msalInstance.getAllAccounts();
       if (accounts.length > 0) {
-        await msalInstance.logoutPopup({
+        await msalInstance.logoutRedirect({
           account: accounts[0],
           postLogoutRedirectUri: window.location.origin,
         });
-        console.info("[Auth] MSAL logout complete");
       }
     } catch (err) {
       console.error("[Auth] Logout error:", err);
@@ -230,6 +242,7 @@ export function useAzureAuth() {
 
   return {
     loginWithAzure,
+    processAuthResult,
     logoutFromAzure,
     silentLogin,
     isLoading,
