@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { mockClientes } from '@/data/mockData';
-import { Cliente } from '@/types';
+import { ClienteLegacy } from '@/types';
 import { DataTable } from '@/components/admin/DataTable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,7 +44,7 @@ const columns = [
 ];
 
 export default function AdminClientes() {
-  const [clientes] = useState<Cliente[]>(mockClientes);
+  const [clientes] = useState<ClienteLegacy[]>(mockClientes);
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
 

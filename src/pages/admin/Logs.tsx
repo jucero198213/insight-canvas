@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { mockLogs, mockUsuarios, mockRelatorios, mockClientes } from '@/data/mockData';
-import { LogAcesso } from '@/types';
+import { LogAcessoLegacy } from '@/types';
 import { DataTable } from '@/components/admin/DataTable';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
 export default function AdminLogs() {
-  const [logs, setLogs] = useState<LogAcesso[]>(mockLogs);
+  const [logs, setLogs] = useState<LogAcessoLegacy[]>(mockLogs);
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);

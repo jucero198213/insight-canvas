@@ -23,6 +23,7 @@ export type Database = {
           nome: string
           status: string
           updated_at: string
+          workspace_id: string | null
         }
         Insert: {
           cor_primaria?: string | null
@@ -32,6 +33,7 @@ export type Database = {
           nome: string
           status?: string
           updated_at?: string
+          workspace_id?: string | null
         }
         Update: {
           cor_primaria?: string | null
@@ -41,8 +43,45 @@ export type Database = {
           nome?: string
           status?: string
           updated_at?: string
+          workspace_id?: string | null
         }
         Relationships: []
+      }
+      permissoes: {
+        Row: {
+          created_at: string
+          id: string
+          relatorio_id: string
+          usuario_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          relatorio_id: string
+          usuario_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          relatorio_id?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permissoes_relatorio_id_fkey"
+            columns: ["relatorio_id"]
+            isOneToOne: false
+            referencedRelation: "relatorios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "permissoes_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -78,6 +117,50 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: true
             referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      relatorios: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          dataset_id: string | null
+          descricao: string | null
+          id: string
+          nome: string
+          report_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          dataset_id?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+          report_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          dataset_id?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+          report_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relatorios_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
             referencedColumns: ["id"]
           },
         ]
