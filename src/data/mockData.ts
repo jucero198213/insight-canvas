@@ -1,6 +1,6 @@
-import { Cliente, Usuario, RelatorioPowerBI, PermissaoUsuarioRelatorio, LogAcesso } from '@/types';
+import { ClienteLegacy, UsuarioLegacy, RelatorioPowerBI, PermissaoUsuarioRelatorio, LogAcessoLegacy } from '@/types';
 
-export const mockClientes: Cliente[] = [
+export const mockClientes: ClienteLegacy[] = [
   {
     id_cliente: 'client-1',
     nome_cliente: 'Empresa ABC',
@@ -27,7 +27,7 @@ export const mockClientes: Cliente[] = [
   },
 ];
 
-export const mockUsuarios: Usuario[] = [
+export const mockUsuarios: UsuarioLegacy[] = [
   {
     id_usuario: '1',
     id_cliente: 'client-1',
@@ -117,7 +117,7 @@ export const mockPermissoes: PermissaoUsuarioRelatorio[] = [
   { id_permissao: 'perm-5', id_usuario: '4', id_relatorio: 'report-4' },
 ];
 
-export const mockLogs: LogAcesso[] = [
+export const mockLogs: LogAcessoLegacy[] = [
   {
     id_log: 'log-1',
     id_usuario: '2',

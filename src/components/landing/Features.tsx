@@ -17,8 +17,8 @@ const features = [
   },
   {
     icon: Shield,
-    title: 'Segurança Enterprise',
-    description: 'Autenticação via Azure AD B2C com tokens JWT e políticas de expiração configuráveis.',
+    title: 'Acesso Seguro',
+    description: 'Autenticação própria com controle centralizado de credenciais e sessões.',
   },
   {
     icon: Users,
@@ -42,13 +42,13 @@ const features = [
   },
   {
     icon: Globe,
-    title: 'Embed Externo',
-    description: 'Suporte a usuários externos ao tenant com Service Principal do Azure.',
+    title: 'Acesso Simplificado',
+    description: 'Usuários acessam relatórios sem precisar de conta Microsoft ou licença Power BI.',
   },
   {
     icon: Layers,
     title: 'Escalabilidade',
-    description: 'Infraestrutura Azure preparada para crescimento com alta disponibilidade.',
+    description: 'Infraestrutura cloud preparada para crescimento com alta disponibilidade.',
   },
 ];
 

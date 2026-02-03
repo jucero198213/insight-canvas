@@ -1,25 +1,29 @@
 // Multi-tenant SaaS Data Types
+// Updated to match database schema
 
 export interface Cliente {
-  id_cliente: string;
-  nome_cliente: string;
+  id: string;
+  nome: string;
   logo_url: string | null;
   cor_primaria: string;
   status: 'ativo' | 'inativo';
-  data_criacao: string;
+  workspace_id?: string; // Power BI workspace ID
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Usuario {
-  id_usuario: string;
-  id_cliente: string;
+  id: string;
+  auth_user_id: string;
+  cliente_id: string;
   email: string;
   nome: string;
   status: 'ativo' | 'inativo';
-  data_criacao: string;
-  role?: 'admin' | 'user';
+  created_at: string;
+  updated_at: string;
 }
 
-// New authenticated user type (from Azure Entra)
+// Authenticated user from session
 export interface AuthenticatedUser {
   id: string;
   email: string;
@@ -30,28 +34,30 @@ export interface AuthenticatedUser {
   is_admin: boolean;
 }
 
-export interface RelatorioPowerBI {
-  id_relatorio: string;
-  id_cliente: string;
-  workspace_id: string;
-  report_id: string;
-  dataset_id: string;
-  nome_relatorio: string;
+export interface Relatorio {
+  id: string;
+  cliente_id: string;
+  nome: string;
   descricao?: string;
+  report_id: string; // Power BI report ID
+  dataset_id?: string; // Power BI dataset ID
   status: 'ativo' | 'inativo';
+  created_at: string;
+  updated_at: string;
 }
 
-export interface PermissaoUsuarioRelatorio {
-  id_permissao: string;
-  id_usuario: string;
-  id_relatorio: string;
+export interface Permissao {
+  id: string;
+  usuario_id: string;
+  relatorio_id: string;
+  created_at: string;
 }
 
 export interface LogAcesso {
-  id_log: string;
-  id_usuario: string;
-  id_cliente: string;
-  id_relatorio: string | null;
+  id: string;
+  usuario_id: string;
+  cliente_id: string;
+  relatorio_id: string | null;
   tipo_evento: 'login' | 'logout' | 'acesso_relatorio';
   data_hora_acesso: string;
   ip_origem: string;
@@ -69,4 +75,60 @@ export interface EmbedConfig {
   embedUrl: string;
   reportId: string;
   tokenExpiry: string;
+}
+
+// ============================================
+// Legacy types for backward compatibility with mock data
+// These will be removed once we migrate to real database
+// ============================================
+
+/** @deprecated Use Cliente instead */
+export interface ClienteLegacy {
+  id_cliente: string;
+  nome_cliente: string;
+  logo_url: string | null;
+  cor_primaria: string;
+  status: 'ativo' | 'inativo';
+  data_criacao: string;
+}
+
+/** @deprecated Use Usuario instead */
+export interface UsuarioLegacy {
+  id_usuario: string;
+  id_cliente: string;
+  email: string;
+  nome: string;
+  status: 'ativo' | 'inativo';
+  data_criacao: string;
+  role?: 'admin' | 'user';
+}
+
+/** @deprecated Use Relatorio instead */
+export interface RelatorioPowerBI {
+  id_relatorio: string;
+  id_cliente: string;
+  workspace_id: string;
+  report_id: string;
+  dataset_id: string;
+  nome_relatorio: string;
+  descricao?: string;
+  status: 'ativo' | 'inativo';
+}
+
+/** @deprecated Use Permissao instead */
+export interface PermissaoUsuarioRelatorio {
+  id_permissao: string;
+  id_usuario: string;
+  id_relatorio: string;
+}
+
+/** @deprecated Use LogAcesso instead */
+export interface LogAcessoLegacy {
+  id_log: string;
+  id_usuario: string;
+  id_cliente: string;
+  id_relatorio: string | null;
+  tipo_evento: 'login' | 'logout' | 'acesso_relatorio';
+  data_hora_acesso: string;
+  ip_origem: string;
 }

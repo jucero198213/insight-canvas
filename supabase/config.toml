@@ -1,4 +1,1 @@
 project_id = "hwabeqxbfwisrovszqbb"
-
-[functions.azure-auth]
-verify_jwt = false

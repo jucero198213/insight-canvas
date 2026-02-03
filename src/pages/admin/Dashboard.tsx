@@ -84,10 +84,10 @@ export default function AdminDashboard() {
             </div>
           </div>
           <div className="space-y-4">
-            {mockLogs.slice(0, 4).map((log) => {
+            {mockLogs.slice(0, 4).map((log, index) => {
               const user = mockUsuarios.find(u => u.id_usuario === log.id_usuario);
               return (
-                <div key={log.id_log} className="flex items-center gap-3">
+                <div key={log.id_log || index} className="flex items-center gap-3">
                   <div className="w-2 h-2 rounded-full bg-accent" />
                   <div className="flex-1">
                     <p className="text-sm text-foreground">

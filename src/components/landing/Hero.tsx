@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { useTenant } from '@/contexts/TenantContext';
-import { ArrowRight, BarChart3, Shield, Zap } from 'lucide-react';
+import { ArrowRight, BarChart3, Shield, Zap, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export function Hero() {
@@ -81,13 +81,13 @@ export function Hero() {
             },
             {
               icon: Shield,
-              title: 'Segurança Enterprise',
-              description: 'Autenticação Azure AD B2C com isolamento total de dados',
+              title: 'Acesso Seguro',
+              description: 'Autenticação gerenciada pela plataforma com controle total de usuários',
             },
             {
-              icon: Zap,
+              icon: Users,
               title: 'Multi-Tenant',
-              description: 'Personalize a experiência para cada cliente com white-label',
+              description: 'Personalize a experiência para cada cliente com white-label completo',
             },
           ].map((feature, index) => (
             <div

@@ -27,9 +27,9 @@ const plans = [
       '1 cliente (tenant)',
       'Até 10 usuários',
       'Até 5 relatórios Power BI',
-      'Power BI Embedded (usuários externos)',
+      'Power BI Embedded integrado',
       'Controle de permissões por usuário',
-      'Autenticação segura via Azure AD B2C',
+      'Autenticação segura gerenciada',
     ],
     cta: 'Começar Agora',
     ctaVariant: 'outline' as const,
@@ -68,7 +68,7 @@ const plans = [
       'Power BI Embedded dedicado',
       'Isolamento avançado de dados',
       'SLA e suporte dedicado',
-      'Customizações sob demanda',
+      'SSO corporativo opcional',
     ],
     cta: 'Falar com Especialista',
     ctaVariant: 'accent' as const,
@@ -119,7 +119,7 @@ export default function Solucoes() {
 
           <p className="text-xl text-primary-foreground/70 max-w-3xl mx-auto">
             Escolha o plano ideal para acessar e distribuir dashboards Power BI 
-            de forma profissional, segura e escalável.
+            de forma profissional, segura e escalável. Sem necessidade de licenças Microsoft para usuários.
           </p>
         </div>
       </header>
@@ -212,7 +212,7 @@ export default function Solucoes() {
           {/* Power BI Embedded Note */}
           <div className="mt-8 flex items-center justify-center gap-2 text-sm text-muted-foreground/70">
             <Info className="w-4 h-4" />
-            <span>A capacidade do Power BI Embedded é dimensionada conforme o plano contratado.</span>
+            <span>Usuários não precisam de conta Microsoft. O AnalyticsPro gerencia todo o acesso.</span>
           </div>
         </div>
       </section>
@@ -249,10 +249,9 @@ export default function Solucoes() {
       {/* Footer */}
       <footer className="py-8 border-t border-border">
         <div className="container mx-auto px-6 text-center text-sm text-muted-foreground">
-          <p>© 2024 {tenant.nome}. Plataforma SaaS multi-tenant para distribuição segura de dashboards Power BI.</p>
+          <p>© {new Date().getFullYear()} {tenant.nome}. Plataforma SaaS multi-tenant para distribuição segura de dashboards Power BI.</p>
         </div>
       </footer>
     </main>
   );
 }
-

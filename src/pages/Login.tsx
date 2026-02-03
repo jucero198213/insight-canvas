@@ -1,17 +1,30 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useTenant } from '@/contexts/TenantContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { BarChart3, ArrowLeft, Loader2, ShieldCheck } from 'lucide-react';
+import { BarChart3, ArrowLeft, Loader2, ShieldCheck, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { z } from 'zod';
+
+const loginSchema = z.object({
+  email: z.string().trim().email('Email inválido').max(255, 'Email muito longo'),
+  password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres').max(100, 'Senha muito longa'),
+});
 
 export default function Login() {
   const { tenant } = useTenant();
-  const { login, isAuthenticated, isLoading, isMsalReady, error, clearError } = useAuth();
+  const { login, isAuthenticated, isLoading, error, clearError } = useAuth();
   const navigate = useNavigate();
-  const [isLoginInProgress, setIsLoginInProgress] = useState(false);
+  
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<{ email?: string; password?: string }>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -20,38 +33,48 @@ export default function Login() {
     }
   }, [isAuthenticated, navigate]);
 
-  // Show error toast
+  // Clear errors on mount
   useEffect(() => {
-    if (error) {
-      toast.error(error);
-    }
-  }, [error]);
+    clearError();
+  }, [clearError]);
 
-  const handleLogin = async () => {
-    if (!isMsalReady) {
-      toast.warning('Sistema de autenticação ainda está carregando. Aguarde...');
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setValidationErrors({});
+    clearError();
+
+    // Validate form
+    const result = loginSchema.safeParse({ email, password });
+    if (!result.success) {
+      const errors: { email?: string; password?: string } = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0] === 'email') errors.email = err.message;
+        if (err.path[0] === 'password') errors.password = err.message;
+      });
+      setValidationErrors(errors);
       return;
     }
 
-    setIsLoginInProgress(true);
-    clearError();
+    setIsSubmitting(true);
 
     try {
-      const success = await login();
+      const { success, error: loginError } = await login(email, password);
+      
       if (success) {
         toast.success('Login realizado com sucesso!');
         navigate('/portal');
+      } else if (loginError) {
+        toast.error(loginError);
       }
     } catch (err) {
       console.error('Login error:', err);
+      toast.error('Erro ao fazer login. Tente novamente.');
     } finally {
-      setIsLoginInProgress(false);
+      setIsSubmitting(false);
     }
   };
 
-  // Button is disabled while loading or MSAL not ready
-  const isButtonDisabled = isLoading || isLoginInProgress || !isMsalReady;
-  const loading = isLoading || isLoginInProgress;
+  const isButtonDisabled = isLoading || isSubmitting;
 
   return (
     <div className="min-h-screen flex">
@@ -80,12 +103,12 @@ export default function Login() {
 
           <div className="mt-12 flex items-center gap-3 text-primary-foreground/60">
             <ShieldCheck className="w-5 h-5" />
-            <span className="text-sm">Autenticação segura via Microsoft Entra ID</span>
+            <span className="text-sm">Acesso seguro gerenciado pela plataforma</span>
           </div>
         </div>
       </div>
 
-      {/* Right Panel - Login */}
+      {/* Right Panel - Login Form */}
       <div className="flex-1 flex items-center justify-center p-8 bg-background">
         <div className="w-full max-w-md">
           <Button
@@ -107,7 +130,7 @@ export default function Login() {
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-foreground mb-2">Entrar</h2>
             <p className="text-muted-foreground">
-              Clique no botão abaixo para autenticar com sua conta Microsoft
+              Digite suas credenciais para acessar o portal
             </p>
           </div>
 
@@ -117,51 +140,90 @@ export default function Login() {
             </Alert>
           )}
 
-          <Button 
-            onClick={handleLogin} 
-            variant="hero" 
-            size="xl" 
-            className="w-full" 
-            disabled={isButtonDisabled}
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Autenticando...
-              </>
-            ) : !isMsalReady ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Carregando...
-              </>
-            ) : (
-              <>
-                <svg 
-                  className="w-5 h-5 mr-2" 
-                  viewBox="0 0 21 21" 
-                  fill="none" 
-                  xmlns="http://www.w3.org/2000/svg"
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="pl-10"
+                  autoComplete="email"
+                  disabled={isButtonDisabled}
+                />
+              </div>
+              {validationErrors.email && (
+                <p className="text-sm text-destructive">{validationErrors.email}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Senha</Label>
+                <Link 
+                  to="/forgot-password" 
+                  className="text-sm text-accent hover:underline"
                 >
-                  <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
-                  <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
-                  <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
-                  <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
-                </svg>
-                Entrar com Microsoft
-              </>
-            )}
-          </Button>
+                  Esqueceu a senha?
+                </Link>
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10 pr-10"
+                  autoComplete="current-password"
+                  disabled={isButtonDisabled}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {validationErrors.password && (
+                <p className="text-sm text-destructive">{validationErrors.password}</p>
+              )}
+            </div>
+
+            <Button 
+              type="submit"
+              variant="hero" 
+              size="xl" 
+              className="w-full" 
+              disabled={isButtonDisabled}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Entrando...
+                </>
+              ) : (
+                'Entrar'
+              )}
+            </Button>
+          </form>
 
           <div className="mt-8 p-4 rounded-xl bg-muted/50 border border-border">
             <div className="flex items-start gap-3">
               <ShieldCheck className="w-5 h-5 text-accent mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-foreground mb-1">
-                  Autenticação Empresarial
+                  Acesso Controlado
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Utilize sua conta corporativa Microsoft para acessar o portal. 
-                  Suas credenciais são verificadas diretamente pelo Microsoft Entra ID.
+                  O acesso é gerenciado pelo administrador da sua empresa. 
+                  Se você ainda não possui credenciais, entre em contato com seu administrador.
                 </p>
               </div>
             </div>
@@ -169,9 +231,9 @@ export default function Login() {
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Problemas para acessar?{' '}
-            <a href="/suporte" className="text-accent hover:underline">
+            <Link to="/suporte" className="text-accent hover:underline">
               Fale com o suporte
-            </a>
+            </Link>
           </p>
         </div>
       </div>

@@ -9,6 +9,8 @@ import { AuthRedirector } from "@/components/auth/AuthRedirector";
 
 import Index from "./pages/Index";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Portal from "./pages/Portal";
 import AdminLayout from "./layouts/AdminLayout";
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -41,6 +43,8 @@ const App = () => (
               <Route path="/privacidade" element={<Privacidade />} />
               <Route path="/suporte" element={<Suporte />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/portal" element={<Portal />} />
               
               {/* Admin Routes */}

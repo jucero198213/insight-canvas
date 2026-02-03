@@ -13,8 +13,8 @@ export default function AdminRelatorios() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const getClienteName = (id: string) => {
-    return mockClientes.find(c => c.id_cliente === id)?.nome_cliente || '-';
+  const getClienteName = (clienteId: string) => {
+    return mockClientes.find(c => c.id_cliente === clienteId)?.nome_cliente || '-';
   };
 
   const columns = [

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { mockUsuarios, mockClientes } from '@/data/mockData';
-import { Usuario } from '@/types';
+import { UsuarioLegacy } from '@/types';
 import { DataTable } from '@/components/admin/DataTable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { UsuarioFormModal } from '@/components/admin/UsuarioFormModal';
 
 export default function AdminUsuarios() {
-  const [usuarios] = useState<Usuario[]>(mockUsuarios);
+  const [usuarios] = useState<UsuarioLegacy[]>(mockUsuarios);
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
 

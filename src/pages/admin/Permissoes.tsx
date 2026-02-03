@@ -13,12 +13,12 @@ export default function AdminPermissoes() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const getUserName = (id: string) => {
-    return mockUsuarios.find(u => u.id_usuario === id)?.nome || '-';
+  const getUserName = (userId: string) => {
+    return mockUsuarios.find(u => u.id_usuario === userId)?.nome || '-';
   };
 
-  const getUserEmail = (id: string) => {
-    return mockUsuarios.find(u => u.id_usuario === id)?.email || '-';
+  const getUserEmail = (userId: string) => {
+    return mockUsuarios.find(u => u.id_usuario === userId)?.email || '-';
   };
 
   const getReportName = (id: string) => {
