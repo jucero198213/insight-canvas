@@ -212,7 +212,7 @@ export default function Solucoes() {
           {/* Power BI Embedded Note */}
           <div className="mt-8 flex items-center justify-center gap-2 text-sm text-muted-foreground/70">
             <Info className="w-4 h-4" />
-            <span>Usuários não precisam de conta Microsoft. O AnalyticsPro gerencia todo o acesso.</span>
+            <span>Usuários não precisam de conta externa. A plataforma gerencia todo o acesso.</span>
           </div>
         </div>
       </section>

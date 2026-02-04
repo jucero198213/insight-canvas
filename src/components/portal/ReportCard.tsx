@@ -1,10 +1,19 @@
-import { RelatorioPowerBI } from '@/types';
 import { BarChart3, Clock, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+interface Relatorio {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  report_id: string;
+  dataset_id: string | null;
+  cliente_id: string;
+  status: string;
+}
+
 interface ReportCardProps {
-  report: RelatorioPowerBI;
-  onOpen: (report: RelatorioPowerBI) => void;
+  report: Relatorio;
+  onOpen: (report: Relatorio) => void;
 }
 
 export function ReportCard({ report, onOpen }: ReportCardProps) {
@@ -24,7 +33,7 @@ export function ReportCard({ report, onOpen }: ReportCardProps) {
       </div>
 
       <h3 className="text-lg font-semibold text-foreground mb-2 group-hover:text-accent transition-colors">
-        {report.nome_relatorio}
+        {report.nome}
       </h3>
       
       {report.descricao && (
