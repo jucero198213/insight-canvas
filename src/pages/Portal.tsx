@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/contexts/TenantContext';
-import { RelatorioPowerBI } from '@/types';
-import { mockRelatorios, mockPermissoes } from '@/data/mockData';
+import { supabase } from '@/integrations/supabase/client';
 import { ReportCard } from '@/components/portal/ReportCard';
 import { PowerBIEmbed } from '@/components/portal/PowerBIEmbed';
 import { Button } from '@/components/ui/button';
@@ -14,19 +13,33 @@ import {
   Settings,
   Search,
   LayoutGrid,
-  List
+  List,
+  Loader2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
+
+interface Relatorio {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  report_id: string;
+  dataset_id: string | null;
+  cliente_id: string;
+  status: string;
+}
 
 export default function Portal() {
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
   const { tenant } = useTenant();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
-  const [reports, setReports] = useState<RelatorioPowerBI[]>([]);
-  const [selectedReport, setSelectedReport] = useState<RelatorioPowerBI | null>(null);
+  const [reports, setReports] = useState<Relatorio[]>([]);
+  const [selectedReport, setSelectedReport] = useState<Relatorio | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -34,19 +47,58 @@ export default function Portal() {
       return;
     }
 
-    // Filter reports based on user permissions
-    if (user) {
-      const userPermissions = mockPermissoes.filter(p => p.id_usuario === user.id);
-      const allowedReportIds = userPermissions.map(p => p.id_relatorio);
-      
-      // Admin sees all reports for their client
-      const filteredReports = isAdmin 
-        ? mockRelatorios.filter(r => r.id_cliente === user.cliente_id)
-        : mockRelatorios.filter(r => allowedReportIds.includes(r.id_relatorio));
-      
-      setReports(filteredReports);
-    }
-  }, [isAuthenticated, user, isAdmin, navigate]);
+    const fetchReports = async () => {
+      try {
+        setIsLoading(true);
+        
+        if (isAdmin) {
+          // Admin sees all reports from their tenant
+          const { data, error } = await supabase
+            .from('relatorios')
+            .select('*')
+            .eq('status', 'ativo')
+            .order('nome');
+
+          if (error) throw error;
+          setReports(data || []);
+        } else {
+          // Regular user sees only reports they have permission for
+          const { data: permissoes, error: permError } = await supabase
+            .from('permissoes')
+            .select('relatorio_id');
+
+          if (permError) throw permError;
+
+          const reportIds = permissoes?.map(p => p.relatorio_id) || [];
+          
+          if (reportIds.length > 0) {
+            const { data, error } = await supabase
+              .from('relatorios')
+              .select('*')
+              .in('id', reportIds)
+              .eq('status', 'ativo')
+              .order('nome');
+
+            if (error) throw error;
+            setReports(data || []);
+          } else {
+            setReports([]);
+          }
+        }
+      } catch (error: any) {
+        console.error('[Portal] Error fetching reports:', error);
+        toast({
+          title: 'Erro ao carregar relatórios',
+          description: error.message,
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchReports();
+  }, [isAuthenticated, isAdmin, navigate, toast]);
 
   const handleLogout = () => {
     logout();
@@ -54,7 +106,7 @@ export default function Portal() {
   };
 
   const filteredReports = reports.filter(r => 
-    r.nome_relatorio.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    r.nome.toLowerCase().includes(searchQuery.toLowerCase()) ||
     r.descricao?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -142,11 +194,15 @@ export default function Portal() {
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-foreground mb-2">Seus Relatórios</h2>
           <p className="text-muted-foreground">
-            {filteredReports.length} relatório{filteredReports.length !== 1 ? 's' : ''} disponíve{filteredReports.length !== 1 ? 'is' : 'l'}
+            {isLoading ? 'Carregando...' : `${filteredReports.length} relatório${filteredReports.length !== 1 ? 's' : ''} disponíve${filteredReports.length !== 1 ? 'is' : 'l'}`}
           </p>
         </div>
 
-        {filteredReports.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-accent" />
+          </div>
+        ) : filteredReports.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="w-20 h-20 rounded-2xl bg-muted flex items-center justify-center mb-6">
               <BarChart3 className="w-10 h-10 text-muted-foreground" />
@@ -166,7 +222,7 @@ export default function Portal() {
             : 'space-y-4'
           }>
             {filteredReports.map((report, index) => (
-              <div key={report.id_relatorio} style={{ animationDelay: `${index * 0.05}s` }}>
+              <div key={report.id} style={{ animationDelay: `${index * 0.05}s` }}>
                 <ReportCard report={report} onOpen={setSelectedReport} />
               </div>
             ))}

@@ -1,1 +1,4 @@
 project_id = "hwabeqxbfwisrovszqbb"
+
+[functions.powerbi-embed-token]
+verify_jwt = false
