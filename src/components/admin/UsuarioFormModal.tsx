@@ -1,27 +1,65 @@
-import { useState } from 'react';
+ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { mockClientes } from '@/data/mockData';
+ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+ import { Loader2 } from 'lucide-react';
 
 interface UsuarioFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+   onSuccess?: () => void;
+ }
+ 
+ interface Cliente {
+   id: string;
+   nome: string;
 }
 
-export function UsuarioFormModal({ open, onOpenChange }: UsuarioFormModalProps) {
+ export function UsuarioFormModal({ open, onOpenChange, onSuccess }: UsuarioFormModalProps) {
+   const [clientes, setClientes] = useState<Cliente[]>([]);
+   const [isLoading, setIsLoading] = useState(false);
+   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     nome: '',
     email: '',
-    id_cliente: '',
+     password: '',
+     cliente_id: '',
     role: 'user',
-    status: 'ativo',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+   useEffect(() => {
+     if (open) {
+       fetchClientes();
+     }
+   }, [open]);
+ 
+   const fetchClientes = async () => {
+     setIsLoading(true);
+     try {
+       const { data, error } = await supabase
+         .from('clientes')
+         .select('id, nome')
+         .eq('status', 'ativo')
+         .order('nome');
+ 
+       if (error) {
+         console.error('Error fetching clientes:', error);
+         return;
+       }
+ 
+       setClientes(data || []);
+     } catch (err) {
+       console.error('Error:', err);
+     } finally {
+       setIsLoading(false);
+     }
+   };
+ 
+   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.nome.trim()) {
@@ -32,15 +70,46 @@ export function UsuarioFormModal({ open, onOpenChange }: UsuarioFormModalProps) 
       toast.error('E-mail é obrigatório');
       return;
     }
-    if (!formData.id_cliente) {
+     if (!formData.password || formData.password.length < 6) {
+       toast.error('Senha deve ter no mínimo 6 caracteres');
+       return;
+     }
+     if (!formData.cliente_id) {
       toast.error('Cliente é obrigatório');
       return;
     }
 
-    // Mock: In production, this would save to database
-    toast.success(`Usuário "${formData.nome}" cadastrado com sucesso!`);
-    onOpenChange(false);
-    setFormData({ nome: '', email: '', id_cliente: '', role: 'user', status: 'ativo' });
+     setIsSubmitting(true);
+     try {
+       const response = await supabase.functions.invoke('manage-users', {
+         body: {
+           email: formData.email,
+           password: formData.password,
+           nome: formData.nome,
+           cliente_id: formData.cliente_id,
+           role: formData.role,
+         },
+       });
+ 
+       if (response.error) {
+         throw new Error(response.error.message);
+       }
+ 
+       if (response.data?.error) {
+         throw new Error(response.data.error);
+       }
+ 
+       toast.success(`Usuário "${formData.nome}" cadastrado com sucesso!`);
+       onOpenChange(false);
+       setFormData({ nome: '', email: '', password: '', cliente_id: '', role: 'user' });
+       onSuccess?.();
+     } catch (err: unknown) {
+       console.error('Error creating user:', err);
+       const message = err instanceof Error ? err.message : 'Erro ao criar usuário';
+       toast.error(message);
+     } finally {
+       setIsSubmitting(false);
+     }
   };
 
   return (
@@ -76,18 +145,30 @@ export function UsuarioFormModal({ open, onOpenChange }: UsuarioFormModalProps) 
           </div>
 
           <div className="space-y-2">
+             <Label htmlFor="password">Senha *</Label>
+             <Input
+               id="password"
+               type="password"
+               value={formData.password}
+               onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+               placeholder="Mínimo 6 caracteres"
+             />
+           </div>
+ 
+           <div className="space-y-2">
             <Label htmlFor="id_cliente">Cliente (Tenant) *</Label>
             <Select 
-              value={formData.id_cliente} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, id_cliente: value }))}
+               value={formData.cliente_id} 
+               onValueChange={(value) => setFormData(prev => ({ ...prev, cliente_id: value }))}
+               disabled={isLoading}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Selecione o cliente" />
+                 <SelectValue placeholder={isLoading ? "Carregando..." : "Selecione o cliente"} />
               </SelectTrigger>
               <SelectContent>
-                {mockClientes.map((cliente) => (
-                  <SelectItem key={cliente.id_cliente} value={cliente.id_cliente}>
-                    {cliente.nome_cliente}
+                 {clientes.map((cliente) => (
+                   <SelectItem key={cliente.id} value={cliente.id}>
+                     {cliente.nome}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -110,27 +191,12 @@ export function UsuarioFormModal({ open, onOpenChange }: UsuarioFormModalProps) 
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="status">Status</Label>
-            <Select 
-              value={formData.status} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ativo">Ativo</SelectItem>
-                <SelectItem value="inativo">Inativo</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           <DialogFooter className="pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               Cancelar
             </Button>
-            <Button type="submit" variant="hero">
+             <Button type="submit" variant="hero" disabled={isSubmitting}>
+               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Cadastrar Usuário
             </Button>
           </DialogFooter>
