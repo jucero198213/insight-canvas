@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { TenantProvider } from "@/contexts/TenantContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthRedirector } from "@/components/auth/AuthRedirector";
+ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 import Index from "./pages/Index";
 import Login from "./pages/Login";
@@ -45,10 +46,18 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/portal" element={<Portal />} />
+               <Route path="/portal" element={
+                 <ProtectedRoute>
+                   <Portal />
+                 </ProtectedRoute>
+               } />
               
               {/* Admin Routes */}
-              <Route path="/admin" element={<AdminLayout />}>
+               <Route path="/admin" element={
+                 <ProtectedRoute requireAdmin>
+                   <AdminLayout />
+                 </ProtectedRoute>
+               }>
                 <Route index element={<AdminDashboard />} />
                 <Route path="clientes" element={<AdminClientes />} />
                 <Route path="usuarios" element={<AdminUsuarios />} />
