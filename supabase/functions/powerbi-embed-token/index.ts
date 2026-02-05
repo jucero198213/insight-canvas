@@ -56,7 +56,7 @@ async function generateEmbedToken(
   reportId: string,
   datasetId: string | null
 ): Promise<EmbedTokenResponse> {
-  // First, get report details to find workspace and embed URL
+
   const reportResponse = await fetch(
     `https://api.powerbi.com/v1.0/myorg/reports/${reportId}`,
     {
@@ -71,10 +71,8 @@ async function generateEmbedToken(
   }
 
   const reportDetails = await reportResponse.json();
-  const workspaceId = reportDetails.datasetWorkspaceId || reportDetails.workspaceId;
   const embedUrl = reportDetails.embedUrl;
 
-  // Generate embed token
   const tokenBody: any = {
     reports: [{ id: reportId }],
     datasets: datasetId ? [{ id: datasetId }] : [{ id: reportDetails.datasetId }],
@@ -109,14 +107,17 @@ async function generateEmbedToken(
 }
 
 serve(async (req: Request): Promise<Response> => {
-  // Handle CORS preflight
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // Validate JWT and get user
-    const authHeader = req.headers.get('Authorization');
+    // 🔑 READ AUTH HEADER (lower + upper case)
+    const authHeader =
+      req.headers.get('authorization') ||
+      req.headers.get('Authorization');
+
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: 'Missing authorization header' }),
@@ -124,14 +125,21 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, // ✅ CORREÇÃO
+      {
+        global: {
+          headers: {
+            Authorization: authHeader,
+          },
+        },
+      }
+    );
 
-    // Verify user is authenticated
+    // ✅ AUTH VALIDATION
     const { data: { user }, error: authError } = await supabase.auth.getUser();
+
     if (authError || !user) {
       console.error('[PowerBI] Auth error:', authError);
       return new Response(
@@ -140,8 +148,8 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get request body
     const { reportId }: EmbedTokenRequest = await req.json();
+
     if (!reportId) {
       return new Response(
         JSON.stringify({ error: 'Missing reportId' }),
@@ -149,7 +157,6 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get usuario record
     const { data: usuario, error: usuarioError } = await supabase
       .from('usuarios')
       .select('id, cliente_id')
@@ -165,7 +172,6 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get report and verify it belongs to user's client
     const { data: relatorio, error: relatorioError } = await supabase
       .from('relatorios')
       .select('id, report_id, dataset_id, cliente_id, nome')
@@ -182,9 +188,8 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Check user has permission (admin or explicit permission)
     const { data: isAdmin } = await supabase.rpc('is_current_user_admin');
-    
+
     if (!isAdmin) {
       const { data: permissao, error: permissaoError } = await supabase
         .from('permissoes')
@@ -202,9 +207,8 @@ serve(async (req: Request): Promise<Response> => {
       }
     }
 
-    console.info(`[PowerBI] Generating embed token for report ${relatorio.nome} (${relatorio.report_id})`);
+    console.info(`[PowerBI] Generating embed token for report ${relatorio.nome}`);
 
-    // Get Azure access token and generate embed token
     const accessToken = await getAzureAccessToken();
     const embedData = await generateEmbedToken(
       accessToken,
