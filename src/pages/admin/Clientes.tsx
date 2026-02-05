@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { DataTable } from '@/components/admin/DataTable';
 import { Button } from '@/components/ui/button';
@@ -10,15 +10,15 @@ import { ClienteFormModal } from '@/components/admin/ClienteFormModal';
 interface Cliente {
   id: string;
   nome: string;
-  cor: string;
+  cor_primaria: string;
   status: string;
   created_at: string;
 }
 
 export default function AdminClientes() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const fetchClientes = async () => {
@@ -27,11 +27,17 @@ export default function AdminClientes() {
 
       const { data, error } = await supabase
         .from('clientes')
-        .select('id, nome, cor, status, created_at')
+        .select(`
+          id,
+          nome,
+          cor_primaria,
+          status,
+          created_at
+        `)
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error(error);
+        console.error('Erro ao buscar clientes:', error);
         toast.error('Erro ao carregar clientes');
         return;
       }
@@ -50,9 +56,12 @@ export default function AdminClientes() {
   }, []);
 
   const columns = [
-    { key: 'nome', header: 'Nome do Cliente' },
     {
-      key: 'cor',
+      key: 'nome',
+      header: 'Nome do Cliente'
+    },
+    {
+      key: 'cor_primaria',
       header: 'Cor',
       render: (value: string) => (
         <div className="flex items-center gap-2">
@@ -68,11 +77,13 @@ export default function AdminClientes() {
       key: 'status',
       header: 'Status',
       render: (value: string) => (
-        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-          value === 'ativo'
-            ? 'bg-success/10 text-success'
-            : 'bg-muted text-muted-foreground'
-        }`}>
+        <span
+          className={`px-3 py-1 rounded-full text-xs font-medium ${
+            value === 'ativo'
+              ? 'bg-success/10 text-success'
+              : 'bg-muted text-muted-foreground'
+          }`}
+        >
           {value === 'ativo' ? 'Ativo' : 'Inativo'}
         </span>
       )
@@ -93,7 +104,9 @@ export default function AdminClientes() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Clientes</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            Clientes
+          </h1>
           <p className="text-muted-foreground">
             Gerencie os tenants da plataforma
           </p>
@@ -115,16 +128,22 @@ export default function AdminClientes() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-12">
+        <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : (
         <DataTable
           columns={columns}
           data={filteredClientes}
-          onView={(row) => toast.info(`Visualizando: ${row.nome}`)}
-          onEdit={(row) => toast.info(`Editando: ${row.nome}`)}
-          onDelete={(row) => toast.error(`Excluir: ${row.nome}`)}
+          onView={(row) =>
+            toast.info(`Visualizando: ${row.nome}`)
+          }
+          onEdit={(row) =>
+            toast.info(`Editando: ${row.nome}`)
+          }
+          onDelete={(row) =>
+            toast.error(`Excluir: ${row.nome}`)
+          }
         />
       )}
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { DataTable } from '@/components/admin/DataTable';
 import { Input } from '@/components/ui/input';
@@ -13,191 +13,121 @@ interface LogAcesso {
   cliente_id: string;
   relatorio_id: string | null;
   tipo_evento: string;
-  ip_origem: string;
+  ip_origem: string | null;
   created_at: string;
-  usuario_nome?: string;
-  cliente_nome?: string;
-  relatorio_nome?: string;
+  usuarios?: { nome: string };
+  clientes?: { nome: string };
+  relatorios?: { nome: string };
 }
 
 export default function AdminLogs() {
   const [logs, setLogs] = useState<LogAcesso[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchLogs = async () => {
-    try {
-      setIsLoading(true);
+    setLoading(true);
 
-      const { data, error } = await supabase
-        .from('logs')
-        .select(`
-          id,
-          usuario_id,
-          cliente_id,
-          relatorio_id,
-          tipo_evento,
-          ip_origem,
-          created_at,
-          usuarios (
-            nome
-          ),
-          clientes (
-            nome
-          ),
-          relatorios (
-            nome
-          )
-        `)
-        .order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('logs_acesso')
+      .select(`
+        id,
+        tipo_evento,
+        ip_origem,
+        created_at,
+        usuarios ( nome ),
+        clientes ( nome ),
+        relatorios ( nome )
+      `)
+      .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Erro ao buscar logs:', error);
-        toast.error('Erro ao carregar logs');
-        return;
-      }
-
-      const formatted: LogAcesso[] = (data || []).map(l => ({
-        id: l.id,
-        usuario_id: l.usuario_id,
-        cliente_id: l.cliente_id,
-        relatorio_id: l.relatorio_id,
-        tipo_evento: l.tipo_evento,
-        ip_origem: l.ip_origem,
-        created_at: l.created_at,
-        usuario_nome: (l.usuarios as { nome: string } | null)?.nome || '-',
-        cliente_nome: (l.clientes as { nome: string } | null)?.nome || '-',
-        relatorio_nome: (l.relatorios as { nome: string } | null)?.nome || '-',
-      }));
-
-      setLogs(formatted);
-    } catch (err) {
-      console.error(err);
+    if (error) {
+      console.error(error);
       toast.error('Erro ao carregar logs');
-    } finally {
-      setIsLoading(false);
+    } else {
+      setLogs(data || []);
     }
+
+    setLoading(false);
   };
 
   useEffect(() => {
     fetchLogs();
   }, []);
 
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    await fetchLogs();
-    setIsRefreshing(false);
-    toast.success('Logs atualizados com sucesso!');
-  }, []);
+  const filteredLogs = logs.filter(log => {
+    const user = log.usuarios?.nome?.toLowerCase() || '';
+    const cliente = log.clientes?.nome?.toLowerCase() || '';
+    return (
+      user.includes(searchQuery.toLowerCase()) ||
+      cliente.includes(searchQuery.toLowerCase())
+    );
+  });
 
-  const handleExport = useCallback(async () => {
-    setIsExporting(true);
+  const handleExport = async () => {
+    const exportData = filteredLogs.map(log => ({
+      'Data/Hora': new Date(log.created_at).toLocaleString('pt-BR'),
+      'Usuário': log.usuarios?.nome || '-',
+      'Cliente': log.clientes?.nome || '-',
+      'Evento': log.tipo_evento,
+      'Relatório': log.relatorios?.nome || '-',
+      'IP': log.ip_origem || '-',
+    }));
 
-    try {
-      const exportData = filteredLogs.map(log => ({
-        'Data/Hora': new Date(log.created_at).toLocaleString('pt-BR'),
-        'Usuário': log.usuario_nome,
-        'Cliente': log.cliente_nome,
-        'Evento':
-          log.tipo_evento === 'login' ? 'Login' :
-          log.tipo_evento === 'logout' ? 'Logout' :
-          log.tipo_evento === 'acesso_relatorio' ? 'Acesso Relatório' :
-          log.tipo_evento,
-        'Relatório': log.relatorio_nome,
-        'IP Origem': log.ip_origem,
-      }));
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    XLSX.utils.book_append_sheet(wb, ws, 'Logs');
+    XLSX.writeFile(wb, `logs_${new Date().toISOString().split('T')[0]}.xlsx`);
 
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(exportData);
-
-      ws['!cols'] = [
-        { wch: 20 },
-        { wch: 25 },
-        { wch: 25 },
-        { wch: 18 },
-        { wch: 30 },
-        { wch: 15 },
-      ];
-
-      XLSX.utils.book_append_sheet(wb, ws, 'Logs de Acesso');
-
-      const date = new Date().toISOString().split('T')[0];
-      XLSX.writeFile(wb, `logs_acesso_${date}.xlsx`);
-
-      toast.success('Logs exportados com sucesso!');
-    } catch (error) {
-      console.error(error);
-      toast.error('Erro ao exportar logs');
-    } finally {
-      setIsExporting(false);
-    }
-  }, [logs]);
+    toast.success('Logs exportados com sucesso');
+  };
 
   const columns = [
     {
       key: 'created_at',
       header: 'Data/Hora',
-      render: (value: string) =>
-        new Date(value).toLocaleString('pt-BR'),
+      render: (v: string) => new Date(v).toLocaleString('pt-BR'),
     },
     {
-      key: 'usuario_nome',
+      key: 'usuarios.nome',
       header: 'Usuário',
+      render: (_: any, row: LogAcesso) => row.usuarios?.nome || '-',
     },
     {
-      key: 'cliente_nome',
+      key: 'clientes.nome',
       header: 'Cliente',
+      render: (_: any, row: LogAcesso) => row.clientes?.nome || '-',
     },
     {
       key: 'tipo_evento',
       header: 'Evento',
-      render: (value: string) => {
-        const map: Record<string, string> = {
-          login: 'Login',
-          logout: 'Logout',
-          acesso_relatorio: 'Acesso Relatório',
-        };
-        return map[value] || value;
-      },
     },
     {
-      key: 'relatorio_nome',
+      key: 'relatorios.nome',
       header: 'Relatório',
+      render: (_: any, row: LogAcesso) => row.relatorios?.nome || '-',
     },
     {
       key: 'ip_origem',
       header: 'IP',
-      render: (value: string) => (
-        <span className="font-mono text-xs">{value}</span>
-      ),
     },
   ];
 
-  const filteredLogs = logs.filter(l =>
-    l.usuario_nome?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    l.cliente_nome?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            Logs de Acesso
-          </h1>
-          <p className="text-muted-foreground">
-            Auditoria e monitoramento de atividades
-          </p>
+          <h1 className="text-3xl font-bold">Logs de Acesso</h1>
+          <p className="text-muted-foreground">Auditoria e monitoramento</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
-            {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+          <Button variant="outline" onClick={fetchLogs} disabled={refreshing}>
+            <RefreshCw className="w-4 h-4" />
             Atualizar
           </Button>
-          <Button variant="outline" onClick={handleExport} disabled={isExporting}>
-            {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="w-4 h-4" />
             Exportar
           </Button>
         </div>
@@ -213,9 +143,9 @@ export default function AdminLogs() {
         />
       </div>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="animate-spin" />
         </div>
       ) : (
         <DataTable columns={columns} data={filteredLogs} />
