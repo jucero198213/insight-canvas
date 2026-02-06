@@ -12,24 +12,53 @@ interface EmbedTokenRequest {
 }
 
 serve(async (req: Request): Promise<Response> => {
+  console.log("========================================");
+  console.log("[REQUEST] New request received");
+  console.log("[REQUEST] Method:", req.method);
+  console.log("[REQUEST] URL:", req.url);
+  
   if (req.method === "OPTIONS") {
+    console.log("[CORS] Handling OPTIONS preflight");
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
+    // 🔍 LOG 1: Headers
+    console.log("[HEADERS] All headers:");
+    req.headers.forEach((value, key) => {
+      if (key.toLowerCase() === 'authorization') {
+        console.log(`  ${key}: ${value.substring(0, 20)}...`);
+      } else {
+        console.log(`  ${key}: ${value}`);
+      }
+    });
+
     const authHeader = req.headers.get("Authorization");
 
     if (!authHeader) {
-      console.error("[Auth] Missing Authorization header");
+      console.error("[AUTH] ❌ Missing Authorization header");
       return jsonError("Missing authorization header", 401);
     }
 
-    console.log("[Auth] Authorization header present");
+    console.log("[AUTH] ✅ Authorization header present");
+    console.log("[AUTH] Token format:", authHeader.substring(0, 30) + "...");
 
-    // ✅ CORREÇÃO: Criar cliente Supabase com o token do usuário
+    // 🔍 LOG 2: Environment variables
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    
+    console.log("[ENV] SUPABASE_URL:", supabaseUrl ? "✅ Set" : "❌ Missing");
+    console.log("[ENV] SUPABASE_ANON_KEY:", supabaseAnonKey ? "✅ Set" : "❌ Missing");
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error("Missing SUPABASE_URL or SUPABASE_ANON_KEY");
+    }
+
+    // ✅ Criar cliente Supabase para autenticação
+    console.log("[SUPABASE] Creating client with ANON_KEY...");
     const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      supabaseUrl,
+      supabaseAnonKey,
       {
         global: {
           headers: { Authorization: authHeader },
@@ -37,33 +66,52 @@ serve(async (req: Request): Promise<Response> => {
       }
     );
 
-    // ✅ Verificar usuário autenticado
+    // 🔍 LOG 3: Verificar usuário
+    console.log("[AUTH] Calling getUser()...");
     const {
       data: { user },
       error: userError,
     } = await supabaseClient.auth.getUser();
 
-    if (userError || !user) {
-      console.error("[Auth] User authentication failed:", userError);
-      return jsonError("Unauthorized", 401);
+    if (userError) {
+      console.error("[AUTH] ❌ getUser() error:", userError);
+      console.error("[AUTH] Error details:", JSON.stringify(userError, null, 2));
+      return jsonError(`Authentication failed: ${userError.message}`, 401);
     }
 
-    console.log(`[Auth] User authenticated: ${user.id}`);
+    if (!user) {
+      console.error("[AUTH] ❌ No user returned from getUser()");
+      return jsonError("No user found", 401);
+    }
 
-    const { reportId }: EmbedTokenRequest = await req.json();
+    console.log("[AUTH] ✅ User authenticated:", user.id);
+    console.log("[AUTH] User email:", user.email);
+
+    // 🔍 LOG 4: Request body
+    const requestBody = await req.json();
+    console.log("[BODY] Request body:", JSON.stringify(requestBody));
+
+    const { reportId }: EmbedTokenRequest = requestBody;
+    
     if (!reportId) {
+      console.error("[BODY] ❌ Missing reportId in body");
       return jsonError("Missing reportId", 400);
     }
 
-    console.log(`[Request] Report ID requested: ${reportId}`);
+    console.log("[BODY] ✅ Report ID:", reportId);
 
-    // ✅ Usar SERVICE_ROLE_KEY apenas para queries administrativas
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    // 🔍 LOG 5: Admin client
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    console.log("[ENV] SUPABASE_SERVICE_ROLE_KEY:", supabaseServiceKey ? "✅ Set" : "❌ Missing");
 
-    // 👤 Usuário interno
+    if (!supabaseServiceKey) {
+      throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // 👤 Buscar usuário
+    console.log("[DB] Querying usuarios table for auth_user_id:", user.id);
     const { data: usuario, error: usuarioError } = await supabaseAdmin
       .from("usuarios")
       .select("id, cliente_id")
@@ -71,14 +119,20 @@ serve(async (req: Request): Promise<Response> => {
       .eq("status", "ativo")
       .single();
 
-    if (usuarioError || !usuario) {
-      console.error("[User] User not found in usuarios table:", usuarioError);
+    if (usuarioError) {
+      console.error("[DB] ❌ Error querying usuarios:", usuarioError);
+      return jsonError(`User not found in database: ${usuarioError.message}`, 403);
+    }
+
+    if (!usuario) {
+      console.error("[DB] ❌ No usuario record found");
       return jsonError("User not registered", 403);
     }
 
-    console.log(`[User] Found user: ${usuario.id}, cliente: ${usuario.cliente_id}`);
+    console.log("[DB] ✅ Usuario found:", usuario.id, "cliente_id:", usuario.cliente_id);
 
-    // 📄 Relatório
+    // 📄 Buscar relatório
+    console.log("[DB] Querying relatorios table for id:", reportId);
     const { data: relatorio, error: relatorioError } = await supabaseAdmin
       .from("relatorios")
       .select("*")
@@ -87,14 +141,23 @@ serve(async (req: Request): Promise<Response> => {
       .eq("status", "ativo")
       .single();
 
-    if (relatorioError || !relatorio) {
-      console.error("[Report] Report not found:", relatorioError);
+    if (relatorioError) {
+      console.error("[DB] ❌ Error querying relatorios:", relatorioError);
+      return jsonError(`Report not found: ${relatorioError.message}`, 403);
+    }
+
+    if (!relatorio) {
+      console.error("[DB] ❌ No relatorio record found");
       return jsonError("Report not found", 403);
     }
 
-    console.log(`[Report] Found report: ${relatorio.nome} (${relatorio.report_id})`);
+    console.log("[DB] ✅ Relatorio found:");
+    console.log("  - nome:", relatorio.nome);
+    console.log("  - report_id:", relatorio.report_id);
+    console.log("  - dataset_id:", relatorio.dataset_id);
 
-    // 🔐 Role
+    // 🔐 Verificar permissões
+    console.log("[PERMISSION] Checking user_roles...");
     const { data: roleRow } = await supabaseAdmin
       .from("user_roles")
       .select("role")
@@ -102,9 +165,10 @@ serve(async (req: Request): Promise<Response> => {
       .single();
 
     const isAdmin = roleRow?.role === "admin";
-    console.log(`[Permission] User is admin: ${isAdmin}`);
+    console.log("[PERMISSION] User role:", roleRow?.role || "none", "isAdmin:", isAdmin);
 
     if (!isAdmin) {
+      console.log("[PERMISSION] Not admin, checking permissoes table...");
       const { data: permissao } = await supabaseAdmin
         .from("permissoes")
         .select("id")
@@ -113,24 +177,28 @@ serve(async (req: Request): Promise<Response> => {
         .single();
 
       if (!permissao) {
-        console.error("[Permission] Access denied - no permission found");
+        console.error("[PERMISSION] ❌ Access denied - no permission");
         return jsonError("Access denied", 403);
       }
 
-      console.log("[Permission] Permission granted via permissoes table");
+      console.log("[PERMISSION] ✅ Permission granted via permissoes table");
+    } else {
+      console.log("[PERMISSION] ✅ Admin access granted");
     }
 
-    // 🔑 Power BI - Gerar token de embed
-    console.log(`[PowerBI] Starting embed token generation for report: ${relatorio.report_id}`);
-    
+    // 🔑 Power BI
+    console.log("[POWERBI] Starting token generation...");
     const azureToken = await getAzureAccessToken();
+    console.log("[POWERBI] Azure token obtained, generating embed token...");
+    
     const embedData = await generateEmbedToken(
       azureToken,
       relatorio.report_id,
       relatorio.dataset_id
     );
 
-    console.log("[PowerBI] Embed token generated successfully");
+    console.log("[POWERBI] ✅ Embed token generated successfully");
+    console.log("[RESPONSE] Sending success response");
 
     return new Response(
       JSON.stringify({
@@ -145,24 +213,24 @@ serve(async (req: Request): Promise<Response> => {
       }
     );
   } catch (err: any) {
-    console.error("[PowerBI Edge] Error:", err);
+    console.error("[ERROR] ❌❌❌ Caught exception:", err);
+    console.error("[ERROR] Stack trace:", err.stack);
     return jsonError(err.message || "Internal server error", 500);
   }
 });
-
-// ========================================
-// 🔑 Funções de autenticação Azure/Power BI
-// ========================================
 
 async function getAzureAccessToken(): Promise<string> {
   const tenantId = Deno.env.get("POWER_BI_TENANT_ID");
   const clientId = Deno.env.get("POWER_BI_CLIENT_ID");
   const clientSecret = Deno.env.get("POWER_BI_CLIENT_SECRET");
 
+  console.log("[AZURE] Checking credentials...");
+  console.log("[AZURE] POWER_BI_TENANT_ID:", tenantId ? "✅" : "❌");
+  console.log("[AZURE] POWER_BI_CLIENT_ID:", clientId ? "✅" : "❌");
+  console.log("[AZURE] POWER_BI_CLIENT_SECRET:", clientSecret ? "✅" : "❌");
+
   if (!tenantId || !clientId || !clientSecret) {
-    throw new Error(
-      "Missing Azure credentials. Required: POWER_BI_TENANT_ID, POWER_BI_CLIENT_ID, POWER_BI_CLIENT_SECRET"
-    );
+    throw new Error("Missing Azure credentials");
   }
 
   const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
@@ -174,7 +242,7 @@ async function getAzureAccessToken(): Promise<string> {
     scope: "https://analysis.windows.net/powerbi/api/.default",
   });
 
-  console.log("[Azure] Requesting access token...");
+  console.log("[AZURE] Requesting access token from:", tokenUrl);
 
   const response = await fetch(tokenUrl, {
     method: "POST",
@@ -184,14 +252,12 @@ async function getAzureAccessToken(): Promise<string> {
 
   if (!response.ok) {
     const error = await response.text();
-    console.error("[Azure Token Error]", error);
-    throw new Error(
-      `Failed to get Azure access token: ${response.status} ${response.statusText}`
-    );
+    console.error("[AZURE] ❌ Token request failed:", response.status, error);
+    throw new Error(`Azure token failed: ${response.status}`);
   }
 
   const data = await response.json();
-  console.log("[Azure] Access token obtained successfully");
+  console.log("[AZURE] ✅ Access token obtained");
   return data.access_token;
 }
 
@@ -202,18 +268,17 @@ async function generateEmbedToken(
 ) {
   const workspaceId = Deno.env.get("POWER_BI_WORKSPACE_ID");
   
+  console.log("[POWERBI] POWER_BI_WORKSPACE_ID:", workspaceId ? "✅" : "❌");
+
   if (!workspaceId) {
-    throw new Error(
-      "Missing POWER_BI_WORKSPACE_ID environment variable. Please add it in Supabase Secrets."
-    );
+    throw new Error("Missing POWER_BI_WORKSPACE_ID");
   }
 
-  console.log(`[PowerBI] Generating embed token for report: ${reportId} in workspace: ${workspaceId}`);
+  console.log("[POWERBI] Report ID:", reportId);
+  console.log("[POWERBI] Workspace ID:", workspaceId);
+  console.log("[POWERBI] Dataset ID:", datasetId || "none");
 
-  // 1. Embed URL
   const embedUrl = `https://app.powerbi.com/reportEmbed?reportId=${reportId}&groupId=${workspaceId}`;
-
-  // 2. Generate embed token via Power BI REST API
   const tokenUrl = `https://api.powerbi.com/v1.0/myorg/groups/${workspaceId}/reports/${reportId}/GenerateToken`;
 
   const tokenBody: any = {
@@ -221,10 +286,12 @@ async function generateEmbedToken(
     allowSaveAs: false,
   };
 
-  // Incluir dataset se disponível
   if (datasetId) {
     tokenBody.datasets = [{ id: datasetId }];
   }
+
+  console.log("[POWERBI] Requesting embed token from Power BI API...");
+  console.log("[POWERBI] Request body:", JSON.stringify(tokenBody));
 
   const response = await fetch(tokenUrl, {
     method: "POST",
@@ -237,16 +304,13 @@ async function generateEmbedToken(
 
   if (!response.ok) {
     const error = await response.text();
-    console.error("[PowerBI Embed Token Error]", error);
-    throw new Error(
-      `Failed to generate Power BI embed token: ${response.status} ${response.statusText}. Error: ${error}`
-    );
+    console.error("[POWERBI] ❌ Embed token failed:", response.status, error);
+    throw new Error(`Power BI embed token failed: ${response.status}`);
   }
 
   const data = await response.json();
-
-  console.log("[PowerBI] Embed token generated successfully");
-  console.log(`[PowerBI] Token expires at: ${data.expiration}`);
+  console.log("[POWERBI] ✅ Embed token generated");
+  console.log("[POWERBI] Token expires at:", data.expiration);
 
   return {
     token: data.token,
@@ -256,6 +320,7 @@ async function generateEmbedToken(
 }
 
 function jsonError(message: string, status = 400) {
+  console.log(`[RESPONSE] Sending error: ${status} - ${message}`);
   return new Response(
     JSON.stringify({ error: message }),
     {

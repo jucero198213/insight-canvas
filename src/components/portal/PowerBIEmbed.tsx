@@ -36,25 +36,38 @@ export function PowerBIEmbed({ report, onClose }: PowerBIEmbedProps) {
     setError(null);
 
     try {
-      const { data: { session }} = await supabase.auth.getSession();
+      // ✅ CORREÇÃO 1: Pegar a sessão de forma mais robusta
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
-      if (!session) {
+      if (sessionError) {
+        console.error('[PowerBI] Session error:', sessionError);
+        throw new Error('Erro ao obter sessão. Faça login novamente.');
+      }
+
+      if (!sessionData?.session?.access_token) {
+        console.error('[PowerBI] No access token in session');
         throw new Error('Sessão expirada. Faça login novamente.');
       }
 
+      const accessToken = sessionData.session.access_token;
+      
+      console.log('[PowerBI] Session valid, access token length:', accessToken.length);
       console.log('[PowerBI] Requesting token for report ID:', report.id);
 
+      // ✅ CORREÇÃO 2: Enviar o token no formato correto
       const response = await supabase.functions.invoke(
         'powerbi-embed-token',
         {
-          body: { reportId: report.id }, // ✅ CORRIGIDO: usar report.id (UUID Supabase)
+          body: { reportId: report.id },
           headers: {
-            Authorization: `Bearer ${session.access_token}`,
+            Authorization: `Bearer ${accessToken}`, // ✅ Formato correto
           },
         }
       );
 
-      console.log('[PowerBI] Response:', response);
+      console.log('[PowerBI] Response status:', response.error ? 'error' : 'success');
+      console.log('[PowerBI] Response data:', response.data);
+      console.log('[PowerBI] Response error:', response.error);
 
       if (response.error) {
         console.error('[PowerBI] Edge Function error:', response.error);
@@ -62,9 +75,13 @@ export function PowerBIEmbed({ report, onClose }: PowerBIEmbedProps) {
       }
 
       if (!response.data?.success) {
-        throw new Error(response.data?.error || 'Falha ao gerar token de embed');
+        const errorMsg = response.data?.error || 'Falha ao gerar token de embed';
+        console.error('[PowerBI] Request failed:', errorMsg);
+        throw new Error(errorMsg);
       }
 
+      console.log('[PowerBI] Embed token received successfully');
+      
       setEmbedData({
         token: response.data.token,
         embedUrl: response.data.embedUrl,
@@ -80,7 +97,7 @@ export function PowerBIEmbed({ report, onClose }: PowerBIEmbedProps) {
 
   useEffect(() => {
     fetchEmbedToken();
-  }, [report.id]); // ✅ CORRIGIDO: usar report.id ao invés de report.report_id
+  }, [report.id]);
 
   const getEmbedUrl = () => {
     if (!embedData) return '';
