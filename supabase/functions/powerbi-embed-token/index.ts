@@ -25,7 +25,6 @@ serve(async (req: Request): Promise<Response> => {
       return jsonError("Missing authorization header", 401);
     }
 
-    // ✅ JEITO CERTO: repassar Authorization
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -38,7 +37,6 @@ serve(async (req: Request): Promise<Response> => {
       }
     );
 
-    // ✅ AGORA FUNCIONA
     const {
       data: { user },
       error: authError,
@@ -101,7 +99,9 @@ serve(async (req: Request): Promise<Response> => {
       }
     }
 
-    // 🔑 Power BI
+    // 🔑 Power BI - Gerar token de embed
+    console.log(`[PowerBI] Generating embed token for report: ${relatorio.report_id}`);
+    
     const azureToken = await getAzureAccessToken();
     const embedData = await generateEmbedToken(
       azureToken,
@@ -126,6 +126,112 @@ serve(async (req: Request): Promise<Response> => {
     return jsonError(err.message || "Internal server error", 500);
   }
 });
+
+// ========================================
+// 🔑 Funções de autenticação Azure/Power BI
+// ========================================
+
+async function getAzureAccessToken(): Promise<string> {
+  // ✅ Usando os nomes CORRETOS dos secrets que você configurou
+  const tenantId = Deno.env.get("POWER_BI_TENANT_ID");
+  const clientId = Deno.env.get("POWER_BI_CLIENT_ID");
+  const clientSecret = Deno.env.get("POWER_BI_CLIENT_SECRET");
+
+  if (!tenantId || !clientId || !clientSecret) {
+    throw new Error(
+      "Missing Azure credentials. Required: POWER_BI_TENANT_ID, POWER_BI_CLIENT_ID, POWER_BI_CLIENT_SECRET"
+    );
+  }
+
+  const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+  
+  const params = new URLSearchParams({
+    grant_type: "client_credentials",
+    client_id: clientId,
+    client_secret: clientSecret,
+    scope: "https://analysis.windows.net/powerbi/api/.default",
+  });
+
+  console.log("[Azure] Requesting access token...");
+
+  const response = await fetch(tokenUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: params.toString(),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error("[Azure Token Error]", error);
+    throw new Error(
+      `Failed to get Azure access token: ${response.status} ${response.statusText}`
+    );
+  }
+
+  const data = await response.json();
+  console.log("[Azure] Access token obtained successfully");
+  return data.access_token;
+}
+
+async function generateEmbedToken(
+  azureToken: string,
+  reportId: string,
+  datasetId: string | null
+) {
+  const workspaceId = Deno.env.get("POWER_BI_WORKSPACE_ID");
+  
+  if (!workspaceId) {
+    throw new Error(
+      "Missing POWER_BI_WORKSPACE_ID environment variable. Please add it in Supabase Secrets."
+    );
+  }
+
+  console.log(`[PowerBI] Generating embed token for report: ${reportId} in workspace: ${workspaceId}`);
+
+  // 1. Embed URL
+  const embedUrl = `https://app.powerbi.com/reportEmbed?reportId=${reportId}&groupId=${workspaceId}`;
+
+  // 2. Generate embed token via Power BI REST API
+  const tokenUrl = `https://api.powerbi.com/v1.0/myorg/groups/${workspaceId}/reports/${reportId}/GenerateToken`;
+
+  const tokenBody: any = {
+    accessLevel: "View",
+    allowSaveAs: false,
+  };
+
+  // Incluir dataset se disponível
+  if (datasetId) {
+    tokenBody.datasets = [{ id: datasetId }];
+  }
+
+  const response = await fetch(tokenUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${azureToken}`,
+    },
+    body: JSON.stringify(tokenBody),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error("[PowerBI Embed Token Error]", error);
+    throw new Error(
+      `Failed to generate Power BI embed token: ${response.status} ${response.statusText}. Error: ${error}`
+    );
+  }
+
+  const data = await response.json();
+
+  console.log("[PowerBI] Embed token generated successfully");
+  console.log(`[PowerBI] Token expires at: ${data.expiration}`);
+
+  return {
+    token: data.token,
+    embedUrl: embedUrl,
+    expiration: data.expiration,
+  };
+}
 
 function jsonError(message: string, status = 400) {
   return new Response(
