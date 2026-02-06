@@ -4,10 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Relatorio {
-  id: string;
+  id: string;              // UUID Supabase
   nome: string;
   descricao: string | null;
-  report_id: string;
+  report_id: string;       // ID Power BI (IMPORTANTE)
   dataset_id: string | null;
   cliente_id: string;
   status: string;
@@ -34,23 +34,34 @@ export function PowerBIEmbed({ report, onClose }: PowerBIEmbedProps) {
   const fetchEmbedToken = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError || !session) {
         throw new Error('Sessão expirada. Faça login novamente.');
       }
 
-      const response = await supabase.functions.invoke('powerbi-embed-token', {
-        body: { reportId: report.id },
-      });
+      const response = await supabase.functions.invoke(
+        'powerbi-embed-token',
+        {
+          body: {
+            reportId: report.report_id,     // ✅ CORRETO
+            datasetId: report.dataset_id,  // ✅ EXPLÍCITO
+          },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`, // ✅ OBRIGATÓRIO
+          },
+        }
+      );
 
       if (response.error) {
+        console.error('[PowerBI] Edge Function error:', response.error);
         throw new Error(response.error.message || 'Erro ao obter token de embed');
       }
 
       if (!response.data?.success) {
-        throw new Error(response.data?.error || 'Falha ao gerar token');
+        throw new Error(response.data?.error || 'Falha ao gerar token de embed');
       }
 
       setEmbedData({
@@ -68,9 +79,9 @@ export function PowerBIEmbed({ report, onClose }: PowerBIEmbedProps) {
 
   useEffect(() => {
     fetchEmbedToken();
-  }, [report.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [report.report_id]);
 
-  // Build the embedded URL with token
   const getEmbedUrl = () => {
     if (!embedData) return '';
     const url = new URL(embedData.embedUrl);
@@ -97,16 +108,16 @@ export function PowerBIEmbed({ report, onClose }: PowerBIEmbedProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={fetchEmbedToken}
             disabled={isLoading}
           >
             <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="icon"
             onClick={() => setIsFullscreen(!isFullscreen)}
           >
@@ -115,7 +126,7 @@ export function PowerBIEmbed({ report, onClose }: PowerBIEmbedProps) {
         </div>
       </div>
 
-      {/* Embed Container */}
+      {/* Embed */}
       <div className={`flex-1 rounded-xl bg-card border overflow-hidden ${isFullscreen ? '' : 'shadow-elevated'}`}>
         {isLoading ? (
           <div className="w-full h-full flex items-center justify-center bg-muted/20">
@@ -128,7 +139,9 @@ export function PowerBIEmbed({ report, onClose }: PowerBIEmbedProps) {
           <div className="w-full h-full flex items-center justify-center bg-muted/20">
             <div className="text-center max-w-md p-8">
               <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">Erro ao carregar relatório</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-2">
+                Erro ao carregar relatório
+              </h3>
               <p className="text-muted-foreground mb-4">{error}</p>
               <Button onClick={fetchEmbedToken}>
                 <RefreshCw className="w-4 h-4 mr-2" />
