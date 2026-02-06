@@ -42,15 +42,19 @@ export function PowerBIEmbed({ report, onClose }: PowerBIEmbedProps) {
         throw new Error('Sessão expirada. Faça login novamente.');
       }
 
+      console.log('[PowerBI] Requesting token for report ID:', report.id);
+
       const response = await supabase.functions.invoke(
         'powerbi-embed-token',
         {
-          body: { reportId: report.id },   
+          body: { reportId: report.id }, // ✅ CORRIGIDO: usar report.id (UUID Supabase)
           headers: {
-            Authorization: `Bearer ${session.access_token}`, // ✅ OBRIGATÓRIO
+            Authorization: `Bearer ${session.access_token}`,
           },
         }
       );
+
+      console.log('[PowerBI] Response:', response);
 
       if (response.error) {
         console.error('[PowerBI] Edge Function error:', response.error);
@@ -76,8 +80,7 @@ export function PowerBIEmbed({ report, onClose }: PowerBIEmbedProps) {
 
   useEffect(() => {
     fetchEmbedToken();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [report.id]);
+  }, [report.id]); // ✅ CORRIGIDO: usar report.id ao invés de report.report_id
 
   const getEmbedUrl = () => {
     if (!embedData) return '';
