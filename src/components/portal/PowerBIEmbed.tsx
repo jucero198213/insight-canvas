@@ -36,19 +36,16 @@ export function PowerBIEmbed({ report, onClose }: PowerBIEmbedProps) {
     setError(null);
 
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const { data: { session }} = await supabase.auth.getSession();
 
-      if (sessionError || !session) {
+      if (!session) {
         throw new Error('Sessão expirada. Faça login novamente.');
       }
 
       const response = await supabase.functions.invoke(
         'powerbi-embed-token',
         {
-          body: {
-            reportId: report.report_id,     // ✅ CORRETO
-            datasetId: report.dataset_id,  // ✅ EXPLÍCITO
-          },
+          body: { reportId: report_id },   
           headers: {
             Authorization: `Bearer ${session.access_token}`, // ✅ OBRIGATÓRIO
           },
