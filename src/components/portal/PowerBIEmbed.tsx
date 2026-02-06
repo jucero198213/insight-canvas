@@ -45,7 +45,7 @@ export function PowerBIEmbed({ report, onClose }: PowerBIEmbedProps) {
       const response = await supabase.functions.invoke(
         'powerbi-embed-token',
         {
-          body: { reportId: report_id },   
+          body: { reportId: report.id },   
           headers: {
             Authorization: `Bearer ${session.access_token}`, // ✅ OBRIGATÓRIO
           },
@@ -77,7 +77,7 @@ export function PowerBIEmbed({ report, onClose }: PowerBIEmbedProps) {
   useEffect(() => {
     fetchEmbedToken();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [report.report_id]);
+  }, [report.id]);
 
   const getEmbedUrl = () => {
     if (!embedData) return '';
