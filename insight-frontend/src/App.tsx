@@ -15,7 +15,12 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/relatorios/financeiro" />} />
+
+      {/* Rota interna (uso normal) */}
       <Route path="/relatorios/:reportKey" element={<ReportPage />} />
+
+      {/* 🔥 NOVA rota pública para iframe (Lovable) */}
+      <Route path="/embed/:reportKey" element={<ReportPage />} />
     </Routes>
   );
 }
