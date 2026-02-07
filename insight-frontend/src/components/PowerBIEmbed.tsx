@@ -14,28 +14,51 @@ type Props = {
 
 export default function PowerBIReport({ reportKey }: Props) {
   const [config, setConfig] = useState<EmbedConfig | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadEmbedConfig() {
-      setConfig(null);
+      try {
+        setConfig(null);
+        setError(null);
 
-      const response = await fetch(
-        `/powerbi/embed-token?reportKey=${reportKey}`
-      );
+        const apiUrl = import.meta.env.VITE_API_URL;
 
-      const data = await response.json();
+        if (!apiUrl) {
+          throw new Error("VITE_API_URL não configurada");
+        }
 
-      setConfig({
-        accessToken: data.token,
-        reportId: data.reportId,
-        embedUrl: `https://app.powerbi.com/reportEmbed?reportId=${data.reportId}`,
-      });
+        const response = await fetch(
+          `${apiUrl}/powerbi/embed-token?reportKey=${reportKey}`
+        );
+
+        if (!response.ok) {
+          throw new Error("Erro ao obter embed token");
+        }
+
+        const data = await response.json();
+
+        setConfig({
+          accessToken: data.token,
+          reportId: data.reportId,
+          embedUrl: `https://app.powerbi.com/reportEmbed?reportId=${data.reportId}`,
+        });
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || "Erro inesperado");
+      }
     }
 
     loadEmbedConfig();
   }, [reportKey]);
 
-  if (!config) return <p>Carregando relatório...</p>;
+  if (error) {
+    return <p>Erro ao carregar relatório: {error}</p>;
+  }
+
+  if (!config) {
+    return <p>Carregando relatório...</p>;
+  }
 
   return (
     <PowerBIEmbed
