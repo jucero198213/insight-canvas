@@ -8,17 +8,26 @@ const allowedOrigins = [
   "https://analyticspro.com.br",
   "https://www.analyticspro.com.br",
   "https://insight-canvas-one.vercel.app",
+  "https://insight-portal-connect.lovable.app",
   "http://localhost:5173",
-  // futuramente:
-  // "https://lovable.app"
 ];
+
+function isAllowedRequest(req: Request): boolean {
+  const origin = req.headers.origin;
+  const referer = req.headers.referer;
+
+  return allowedOrigins.some((allowed) => {
+    return (
+      (origin && origin.startsWith(allowed)) ||
+      (referer && referer.startsWith(allowed))
+    );
+  });
+}
 
 export async function getEmbedToken(req: Request, res: Response) {
   try {
-    const origin = req.headers.origin;
-
-    // 🔐 Validação explícita de origem (defesa em profundidade)
-    if (origin && !allowedOrigins.includes(origin)) {
+    // 🔐 Validação explícita de origem / referer
+    if (!isAllowedRequest(req)) {
       return res.status(403).json({
         error: "Origin not allowed",
       });
