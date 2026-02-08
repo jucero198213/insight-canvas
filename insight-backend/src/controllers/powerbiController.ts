@@ -12,22 +12,12 @@ const allowedOrigins = [
   "http://localhost:5173",
 ];
 
-function isAllowedRequest(req: Request): boolean {
-  const origin = req.headers.origin;
-  const referer = req.headers.referer;
-
-  return allowedOrigins.some((allowed) => {
-    return (
-      (origin && origin.startsWith(allowed)) ||
-      (referer && referer.startsWith(allowed))
-    );
-  });
-}
-
 export async function getEmbedToken(req: Request, res: Response) {
   try {
-    // 🔐 Validação explícita de origem / referer
-    if (!isAllowedRequest(req)) {
+    const origin = req.headers.origin;
+
+    // 🔐 Validação apenas se houver origin (CORS real)
+    if (origin && !allowedOrigins.includes(origin)) {
       return res.status(403).json({
         error: "Origin not allowed",
       });
