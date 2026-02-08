@@ -6,17 +6,6 @@ import {
   useLocation,
 } from "react-router-dom";
 import PowerBIReport from "./components/PowerBIEmbed";
-import { useAuth } from "./contexts/AuthContext";
-
-function ProtectedRoute({ children }: { children: JSX.Element }) {
-  const { isAuthenticated } = useAuth();
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return children;
-}
 
 function ReportPage() {
   const { reportKey } = useParams();
@@ -33,7 +22,9 @@ function ReportPage() {
         background: isEmbed ? "#000" : "#1e1e1e",
       }}
     >
-      <PowerBIReport reportKey={reportKey || "financeiro"} />
+      <div style={{ width: "100%", height: "100%" }}>
+        <PowerBIReport reportKey={reportKey || "financeiro"} />
+      </div>
     </div>
   );
 }
@@ -41,30 +32,13 @@ function ReportPage() {
 export default function App() {
   return (
     <Routes>
-      {/* Entrada padrão SEMPRE vai para login */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      {/* NÃO redireciona mais para relatório */}
+      <Route path="/" element={<Navigate to="/login" />} />
 
-      {/* Portal protegido */}
-      <Route
-        path="/portal"
-        element={
-          <ProtectedRoute>
-            <div /> {/* Portal real já está em outro arquivo */}
-          </ProtectedRoute>
-        }
-      />
+      {/* Relatórios públicos autenticados pelo backend */}
+      <Route path="/relatorios/:reportKey" element={<ReportPage />} />
 
-      {/* Relatórios (só acessíveis se autenticado) */}
-      <Route
-        path="/relatorios/:reportKey"
-        element={
-          <ProtectedRoute>
-            <ReportPage />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* Embed público controlado */}
+      {/* Embed externo */}
       <Route path="/embed/:reportKey" element={<ReportPage />} />
     </Routes>
   );
