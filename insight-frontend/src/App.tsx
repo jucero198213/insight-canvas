@@ -32,15 +32,31 @@ function ReportPage() {
 export default function App() {
   return (
     <Routes>
-      {/* PONTO DE ENTRADA */}
-      <Route path="/" element={<Navigate to="/portal" replace />} />
+      {/* ESTE APP NÃO TEM PORTAL → REDIRECIONA PARA O APP CORRETO */}
+      <Route
+        path="/"
+        element={
+          <Navigate
+            to="https://analyticspro.com.br/portal"
+            replace
+          />
+        }
+      />
 
-      {/* ROTAS TÉCNICAS (já existentes no projeto) */}
+      {/* ROTAS TÉCNICAS */}
       <Route path="/relatorios/:reportKey" element={<ReportPage />} />
       <Route path="/embed/:reportKey" element={<ReportPage />} />
 
       {/* Fallback */}
-      <Route path="*" element={<Navigate to="/portal" replace />} />
+      <Route
+        path="*"
+        element={
+          <Navigate
+            to="https://analyticspro.com.br/portal"
+            replace
+          />
+        }
+      />
     </Routes>
   );
 }
