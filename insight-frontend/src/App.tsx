@@ -6,6 +6,17 @@ import {
   useLocation,
 } from "react-router-dom";
 import PowerBIReport from "./components/PowerBIEmbed";
+import { useAuth } from "@/contexts/AuthContext";
+
+function ProtectedRoute({ children }: { children: JSX.Element }) {
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
 
 function ReportPage() {
   const { reportKey } = useParams();
@@ -22,11 +33,7 @@ function ReportPage() {
         background: isEmbed ? "#000" : "#1e1e1e",
       }}
     >
-      {!isEmbed && (
-        <div style={{ marginBottom: "10px" }}>
-          {/* espaço para toolbar futura */}
-        </div>
-      )}
+      {!isEmbed && <div style={{ marginBottom: "10px" }} />}
 
       <div style={{ width: "100%", height: "100%" }}>
         <PowerBIReport reportKey={reportKey || "financeiro"} />
@@ -36,14 +43,33 @@ function ReportPage() {
 }
 
 export default function App() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/relatorios/financeiro" />} />
+      {/* Entrada principal */}
+      <Route
+        path="/"
+        element={
+          isAuthenticated ? (
+            <Navigate to="/portal" replace />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
 
-      {/* Uso interno */}
-      <Route path="/relatorios/:reportKey" element={<ReportPage />} />
+      {/* Relatórios internos (NUNCA públicos) */}
+      <Route
+        path="/relatorios/:reportKey"
+        element={
+          <ProtectedRoute>
+            <ReportPage />
+          </ProtectedRoute>
+        }
+      />
 
-      {/* Uso externo (Lovable / iframe) */}
+      {/* Embed técnico (iframe) */}
       <Route path="/embed/:reportKey" element={<ReportPage />} />
     </Routes>
   );
