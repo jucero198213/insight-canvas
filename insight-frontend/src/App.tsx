@@ -1,7 +1,6 @@
 import {
   Routes,
   Route,
-  Navigate,
   useParams,
   useLocation,
 } from "react-router-dom";
@@ -32,29 +31,18 @@ function ReportPage() {
 export default function App() {
   return (
     <Routes>
-      {/* ESTE APP NÃO TEM PORTAL → REDIRECIONA PARA O APP CORRETO */}
-      <Route
-        path="/"
-        element={
-          <Navigate
-            to="https://analyticspro.com.br/portal"
-            replace
-          />
-        }
-      />
-
-      {/* ROTAS TÉCNICAS */}
+      {/* NÃO REDIRECIONA ROOT */}
       <Route path="/relatorios/:reportKey" element={<ReportPage />} />
       <Route path="/embed/:reportKey" element={<ReportPage />} />
 
-      {/* Fallback */}
+      {/* Fallback simples */}
       <Route
         path="*"
         element={
-          <Navigate
-            to="https://analyticspro.com.br/portal"
-            replace
-          />
+          <div style={{ padding: 40 }}>
+            <h1>AnalyticsPro</h1>
+            <p>Aplicação de relatórios</p>
+          </div>
         }
       />
     </Routes>
