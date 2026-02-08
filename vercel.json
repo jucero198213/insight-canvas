@@ -1,7 +1,11 @@
 {
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/relatorios/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/embed/:path*",
       "destination": "/index.html"
     }
   ]
