@@ -2,45 +2,44 @@ import {
   Routes,
   Route,
   Navigate,
+  useParams,
+  useLocation,
 } from "react-router-dom";
-import { useAuth } from "./contexts/AuthContext";
-import Portal from "./pages/Portal";
-import Login from "./pages/Login";
+import PowerBIReport from "./components/PowerBIEmbed";
 
-function ProtectedRoute({ children }: { children: JSX.Element }) {
-  const { isAuthenticated, isLoading } = useAuth();
+function ReportPage() {
+  const { reportKey } = useParams();
+  const location = useLocation();
 
-  if (isLoading) {
-    return null; // ou spinner, se quiser
-  }
+  const isEmbed = location.pathname.startsWith("/embed");
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return children;
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        padding: isEmbed ? 0 : "10px",
+        background: isEmbed ? "#000" : "#1e1e1e",
+      }}
+    >
+      <div style={{ width: "100%", height: "100%" }}>
+        <PowerBIReport reportKey={reportKey || "financeiro"} />
+      </div>
+    </div>
+  );
 }
 
 export default function App() {
   return (
     <Routes>
-      {/* 🔑 Ponto de entrada */}
+      {/* PONTO DE ENTRADA */}
       <Route path="/" element={<Navigate to="/portal" replace />} />
 
-      {/* 🔐 Login */}
-      <Route path="/login" element={<Login />} />
+      {/* ROTAS TÉCNICAS (já existentes no projeto) */}
+      <Route path="/relatorios/:reportKey" element={<ReportPage />} />
+      <Route path="/embed/:reportKey" element={<ReportPage />} />
 
-      {/* 🔒 Portal protegido */}
-      <Route
-        path="/portal"
-        element={
-          <ProtectedRoute>
-            <Portal />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* ❌ Qualquer rota inválida */}
+      {/* Fallback */}
       <Route path="*" element={<Navigate to="/portal" replace />} />
     </Routes>
   );
