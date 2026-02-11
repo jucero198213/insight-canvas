@@ -19,19 +19,19 @@ function requireEnv(name: string): string {
   return value;
 }
 
-export const powerbiReports: Record<PowerBIReportKey, PowerBIReportConfig> = {
+export const powerbiReports: Record<string, PowerBIReportConfig> = {
   financeiro: {
-    workspaceId: requireEnv("POWERBI_WORKSPACE_ID_FINANCEIRO"),
-    reportId: requireEnv("POWERBI_REPORT_ID_FINANCEIRO"),
+    workspaceId: process.env.POWERBI_WORKSPACE_ID!,
+    reportId: process.env.POWERBI_REPORT_ID_FINANCEIRO!,
   },
 
   dre: {
-    workspaceId: requireEnv("POWERBI_WORKSPACE_ID_DRE"),
-    reportId: requireEnv("POWERBI_REPORT_ID_DRE"),
+    workspaceId: process.env.POWERBI_WORKSPACE_ID!,
+    reportId: process.env.POWERBI_REPORT_ID_DRE!,
   },
 
   compras: {
-    workspaceId: requireEnv("POWERBI_WORKSPACE_ID_COMPRAS"),
-    reportId: requireEnv("POWERBI_REPORT_ID_COMPRAS"),
+    workspaceId: process.env.POWERBI_WORKSPACE_ID!,
+    reportId: process.env.POWERBI_REPORT_ID_COMPRAS!,
   },
 };
