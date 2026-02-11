@@ -10,14 +10,14 @@ export const powerbiReports: Record<string, PowerBIReportConfig> = {
     reportId: process.env.POWERBI_REPORT_ID!,
   },
 
-  // Exemplos futuros:
-  // operacional: {
-  //   workspaceId: process.env.POWERBI_WORKSPACE_ID_OPERACIONAL!,
-  //   reportId: process.env.POWERBI_REPORT_ID_OPERACIONAL!,
-  // },
+  dre: {
+    workspaceId: process.env.POWERBI_WORKSPACE_ID_DRE!,
+    reportId: process.env.POWERBI_REPORT_ID_DRE!,
+  },
 
-  // comercial: {
-  //   workspaceId: process.env.POWERBI_WORKSPACE_ID_COMERCIAL!,
-  //   reportId: process.env.POWERBI_REPORT_ID_COMERCIAL!,
-  // },
+  compras: {
+    workspaceId: process.env.POWERBI_WORKSPACE_ID_COMPRAS!,
+    reportId: process.env.POWERBI_REPORT_ID_COMPRAS!,
+  },
 };
+
