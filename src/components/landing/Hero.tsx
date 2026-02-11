@@ -32,7 +32,7 @@ export function Hero() {
             <div className="w-10 h-10 rounded-xl btn-gradient flex items-center justify-center shadow-lg">
               <BarChart3 className="w-6 h-6 text-accent-foreground" />
             </div>
-            <span className="text-2xl font-bold text-primary-foreground">{tenant.nome}</span>
+            <span className="text-2xl font-bold text-primary-foreground tracking-tight">{tenant.nome}</span>
           </div>
           <Button 
             variant="outline-light" 
