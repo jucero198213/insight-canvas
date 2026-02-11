@@ -41,7 +41,7 @@ export default function PowerBIReport({ reportKey }: Props) {
         setConfig({
           accessToken: data.token,
           reportId: data.reportId,
-          embedUrl: `https://app.powerbi.com/reportEmbed?reportId=${data.reportId}`,
+          embedUrl: data.embedUrl,
         });
       } catch (err: any) {
         console.error(err);
