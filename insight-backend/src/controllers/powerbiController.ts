@@ -17,7 +17,7 @@ export async function getEmbedToken(req: Request, res: Response) {
     const origin = req.headers.origin;
 
     // 🔐 Validação apenas se houver origin (CORS real)
-    if (origin && !allowedOrigins.includes(origin)) {
+    if (origin && !allowedOrigins.includes(origin) && !origin.endsWith('.vercel.app') && !origin.endsWith('.lovable.app')) {
       return res.status(403).json({
         error: "Origin not allowed",
       });

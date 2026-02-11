@@ -1,3 +1,5 @@
+import axios from "axios";
+import { getPowerBIAccessToken } from "./powerbiAuth";
 import { powerbiReports, PowerBIReportKey } from "../config/powerbiReports";
 
 export async function generateEmbedToken(reportKey: string) {

@@ -13,7 +13,9 @@ const allowedOrigins = [
   "https://analyticspro.com.br",
   "https://www.analyticspro.com.br",
   "https://insight-canvas-one.vercel.app",
+  "https://insight-portal-connect.lovable.app",
   "http://localhost:5173", // dev local
+  "http://localhost:3000",
 ];
 
 app.use(
@@ -24,7 +26,7 @@ app.use(
         return callback(null, true);
       }
 
-      if (allowedOrigins.includes(origin)) {
+      if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app') || origin.endsWith('.lovable.app')) {
         return callback(null, true);
       }
 
