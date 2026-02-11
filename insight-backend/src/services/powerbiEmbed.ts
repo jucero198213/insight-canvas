@@ -1,13 +1,13 @@
-import axios from "axios";
-import { getPowerBIAccessToken } from "./powerbiAuth";
-import { powerbiReports } from "../config/powerbiReports";
+import { powerbiReports, PowerBIReportKey } from "../config/powerbiReports";
 
 export async function generateEmbedToken(reportKey: string) {
-  const reportConfig = powerbiReports[reportKey];
+  const key = reportKey as PowerBIReportKey;
 
-  if (!reportConfig) {
-    throw new Error("Relatório não encontrado");
+  if (!powerbiReports[key]) {
+    throw new Error(`Relatório inválido: ${reportKey}`);
   }
+
+  const reportConfig = powerbiReports[key];
 
   const accessToken = await getPowerBIAccessToken();
 
@@ -15,9 +15,7 @@ export async function generateEmbedToken(reportKey: string) {
 
   const response = await axios.post(
     url,
-    {
-      accessLevel: "View",
-    },
+    { accessLevel: "View" },
     {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -29,5 +27,6 @@ export async function generateEmbedToken(reportKey: string) {
   return {
     ...response.data,
     reportId: reportConfig.reportId,
+    embedUrl: `https://app.powerbi.com/reportEmbed?reportId=${reportConfig.reportId}`,
   };
 }

@@ -1,23 +1,37 @@
+export type PowerBIReportKey =
+  | "financeiro"
+  | "dre"
+  | "compras";
+
 export type PowerBIReportConfig = {
   workspaceId: string;
   reportId: string;
   datasetId?: string;
 };
 
-export const powerbiReports: Record<string, PowerBIReportConfig> = {
+function requireEnv(name: string): string {
+  const value = process.env[name];
+
+  if (!value) {
+    throw new Error(`Variável de ambiente obrigatória não definida: ${name}`);
+  }
+
+  return value;
+}
+
+export const powerbiReports: Record<PowerBIReportKey, PowerBIReportConfig> = {
   financeiro: {
-    workspaceId: process.env.POWERBI_WORKSPACE_ID!,
-    reportId: process.env.POWERBI_REPORT_ID!,
+    workspaceId: requireEnv("POWERBI_WORKSPACE_ID_FINANCEIRO"),
+    reportId: requireEnv("POWERBI_REPORT_ID_FINANCEIRO"),
   },
 
   dre: {
-    workspaceId: process.env.POWERBI_WORKSPACE_ID_DRE!,
-    reportId: process.env.POWERBI_REPORT_ID_DRE!,
+    workspaceId: requireEnv("POWERBI_WORKSPACE_ID_DRE"),
+    reportId: requireEnv("POWERBI_REPORT_ID_DRE"),
   },
 
   compras: {
-    workspaceId: process.env.POWERBI_WORKSPACE_ID_COMPRAS!,
-    reportId: process.env.POWERBI_REPORT_ID_COMPRAS!,
+    workspaceId: requireEnv("POWERBI_WORKSPACE_ID_COMPRAS"),
+    reportId: requireEnv("POWERBI_REPORT_ID_COMPRAS"),
   },
 };
-
