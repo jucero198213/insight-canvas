@@ -29,6 +29,7 @@ export async function generateEmbedToken(reportKey: string) {
   return {
     ...response.data,
     reportId: reportConfig.reportId,
-    embedUrl: `https://app.powerbi.com/reportEmbed?reportId=${reportConfig.reportId}`,
+    // A URL de embed correta para o Power BI Embedded deve incluir o groupId (workspaceId)
+    embedUrl: `https://app.powerbi.com/reportEmbed?reportId=${reportConfig.reportId}&groupId=${reportConfig.workspaceId}`,
   };
 }

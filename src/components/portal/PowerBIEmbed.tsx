@@ -44,8 +44,15 @@ export function PowerBIEmbed({ report, onClose }: PowerBIEmbedProps) {
         // Se o nome do relatório contiver a palavra, usamos a chave correspondente
         let reportKey = 'financeiro';
         const nomeLower = report.nome.toLowerCase();
-        if (nomeLower.includes('dre')) reportKey = 'dre';
-        else if (nomeLower.includes('compra')) reportKey = 'compras';
+        
+        // Mapeamento inteligente baseado no nome do relatório
+        if (nomeLower.includes('dre')) {
+          reportKey = 'dre';
+        } else if (nomeLower.includes('compra')) {
+          reportKey = 'compras';
+        } else if (nomeLower.includes('faturamento') || nomeLower.includes('financeiro')) {
+          reportKey = 'financeiro';
+        }
 
         const response = await fetch(`${apiUrl}/powerbi/embed-token?reportKey=${reportKey}`);
 
