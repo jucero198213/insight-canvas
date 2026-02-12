@@ -4,7 +4,7 @@ import { AuthRedirector } from "@/components/auth/AuthRedirector";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 import Login from "@/pages/Login";
-import Solucoes from "@/pages/Solucoes";
+
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import Portal from "@/pages/Portal";
@@ -22,7 +22,7 @@ export default function AuthenticatedRoutes() {
     <AuthProvider>
       <AuthRedirector />
       <Routes>
-        <Route path="/solucoes" element={<Solucoes />} />
+        
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />

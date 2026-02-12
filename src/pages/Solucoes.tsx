@@ -1,6 +1,5 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/contexts/TenantContext';
 import { 
   ArrowLeft, 
@@ -77,7 +76,6 @@ const plans = [
 
 export default function Solucoes() {
   const { tenant } = useTenant();
-  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   return (
@@ -190,7 +188,6 @@ export default function Solucoes() {
                         if (plan.id === 'essencial') {
                           navigate('/login');
                         }
-                        // Other CTAs would open contact forms in production
                       }}
                     >
                       {plan.cta}
@@ -202,14 +199,12 @@ export default function Solucoes() {
             })}
           </div>
 
-          {/* Flexibility Message */}
           <div className="mt-12 text-center">
             <p className="text-muted-foreground text-base max-w-2xl mx-auto">
               Os planos podem ser ajustados conforme a necessidade da sua empresa.
             </p>
           </div>
 
-          {/* Power BI Embedded Note */}
           <div className="mt-8 flex items-center justify-center gap-2 text-sm text-muted-foreground/70">
             <Info className="w-4 h-4" />
             <span>Usuários não precisam de conta externa. A plataforma gerencia todo o acesso.</span>
@@ -228,17 +223,10 @@ export default function Solucoes() {
             para distribuir seus dashboards Power BI com segurança.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            {isAuthenticated ? (
-              <Button variant="default" size="lg" onClick={() => navigate('/portal')}>
-                Acessar Portal
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-            ) : (
-              <Button variant="default" size="lg" onClick={() => navigate('/login')}>
-                Solicitar Acesso
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-            )}
+            <Button variant="default" size="lg" onClick={() => navigate('/login')}>
+              Solicitar Acesso
+              <ArrowRight className="w-4 h-4" />
+            </Button>
             <Button variant="outline" size="lg">
               Falar com Consultor
             </Button>
