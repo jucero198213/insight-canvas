@@ -4,73 +4,54 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { TenantProvider } from "@/contexts/TenantContext";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { AuthRedirector } from "@/components/auth/AuthRedirector";
- import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import React, { Suspense } from "react";
 
 import Index from "./pages/Index";
-import Login from "./pages/Login";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import Portal from "./pages/Portal";
-import AdminLayout from "./layouts/AdminLayout";
-import AdminDashboard from "./pages/admin/Dashboard";
-import AdminClientes from "./pages/admin/Clientes";
-import AdminUsuarios from "./pages/admin/Usuarios";
-import AdminRelatorios from "./pages/admin/Relatorios";
-import AdminPermissoes from "./pages/admin/Permissoes";
-import AdminLogs from "./pages/admin/Logs";
-import Solucoes from "./pages/Solucoes";
 import Termos from "./pages/Termos";
 import Privacidade from "./pages/Privacidade";
 import Suporte from "./pages/Suporte";
 import NotFound from "./pages/NotFound";
 
+// Lazy-load auth-dependent routes so supabase client.ts is NOT evaluated
+// during initial module load (prevents crash when env vars are missing)
+const AuthenticatedApp = React.lazy(() => import("./components/auth/AuthenticatedRoutes"));
+
 const queryClient = new QueryClient();
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-4">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <p className="text-muted-foreground">Carregando...</p>
+      </div>
+    </div>
+  );
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TenantProvider>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AuthRedirector />
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/solucoes" element={<Solucoes />} />
-              <Route path="/termos" element={<Termos />} />
-              <Route path="/privacidade" element={<Privacidade />} />
-              <Route path="/suporte" element={<Suporte />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-               <Route path="/portal" element={
-                 <ProtectedRoute>
-                   <Portal />
-                 </ProtectedRoute>
-               } />
-              
-              {/* Admin Routes */}
-               <Route path="/admin" element={
-                 <ProtectedRoute requireAdmin>
-                   <AdminLayout />
-                 </ProtectedRoute>
-               }>
-                <Route index element={<AdminDashboard />} />
-                <Route path="clientes" element={<AdminClientes />} />
-                <Route path="usuarios" element={<AdminUsuarios />} />
-                <Route path="relatorios" element={<AdminRelatorios />} />
-                <Route path="permissoes" element={<AdminPermissoes />} />
-                <Route path="logs" element={<AdminLogs />} />
-              </Route>
-              
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            {/* Public routes - NO supabase dependency */}
+            <Route path="/" element={<Index />} />
+            <Route path="/termos" element={<Termos />} />
+            <Route path="/privacidade" element={<Privacidade />} />
+            <Route path="/suporte" element={<Suporte />} />
+
+            {/* Auth-dependent routes - lazy loaded */}
+            <Route path="/*" element={
+              <Suspense fallback={<LoadingFallback />}>
+                <AuthenticatedApp />
+              </Suspense>
+            } />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
     </TenantProvider>
   </QueryClientProvider>
 );
