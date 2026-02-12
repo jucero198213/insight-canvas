@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-// Error tracking for production
+// Error tracking for production — v2
 window.onerror = function(message, source, lineno, colno, error) {
   console.error('[Global Error]', { message, source, lineno, colno, error });
   return false;
