@@ -47,6 +47,58 @@ export type Database = {
         }
         Relationships: []
       }
+      logs_acesso: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          id: string
+          ip_origem: string | null
+          relatorio_id: string | null
+          tipo_evento: string
+          usuario_id: string
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          id?: string
+          ip_origem?: string | null
+          relatorio_id?: string | null
+          tipo_evento: string
+          usuario_id: string
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          id?: string
+          ip_origem?: string | null
+          relatorio_id?: string | null
+          tipo_evento?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "logs_acesso_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "logs_acesso_relatorio_id_fkey"
+            columns: ["relatorio_id"]
+            isOneToOne: false
+            referencedRelation: "relatorios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "logs_acesso_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       permissoes: {
         Row: {
           created_at: string
@@ -132,6 +184,7 @@ export type Database = {
           report_id: string
           status: string
           updated_at: string
+          workspace_id: string | null
         }
         Insert: {
           cliente_id: string
@@ -143,6 +196,7 @@ export type Database = {
           report_id: string
           status?: string
           updated_at?: string
+          workspace_id?: string | null
         }
         Update: {
           cliente_id?: string
@@ -154,6 +208,7 @@ export type Database = {
           report_id?: string
           status?: string
           updated_at?: string
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -243,6 +298,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_relatorio: {
+        Args: { relatorio_uuid: string }
+        Returns: boolean
+      }
       get_current_cliente_id: { Args: never; Returns: string }
       get_current_usuario_id: { Args: never; Returns: string }
       has_role: {

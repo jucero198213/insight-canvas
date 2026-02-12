@@ -10,11 +10,6 @@ import {
   Clock
 } from 'lucide-react';
 
-interface TopRelatorio {
-  nome: string;
-  total: number;
-}
-
 interface LogRecente {
   id: string;
   tipo_evento: string;
@@ -28,7 +23,6 @@ export default function AdminDashboard() {
   const [usuariosAtivos, setUsuariosAtivos] = useState(0);
   const [relatoriosAtivos, setRelatoriosAtivos] = useState(0);
   const [acessosHoje, setAcessosHoje] = useState(0);
-  const [topRelatorios, setTopRelatorios] = useState<TopRelatorio[]>([]);
   const [logsRecentes, setLogsRecentes] = useState<LogRecente[]>([]);
 
   useEffect(() => {
@@ -38,7 +32,6 @@ export default function AdminDashboard() {
   const fetchDashboard = async () => {
     await Promise.all([
       fetchStats(),
-      fetchTopRelatorios(),
       fetchLogsRecentes(),
     ]);
   };
@@ -52,7 +45,7 @@ export default function AdminDashboard() {
         supabase.from('usuarios').select('*', { count: 'exact', head: true }).eq('status', 'ativo'),
         supabase.from('relatorios').select('*', { count: 'exact', head: true }).eq('status', 'ativo'),
         supabase
-          .from('logs')
+          .from('logs_acesso')
           .select('*', { count: 'exact', head: true })
           .gte('created_at', `${today}T00:00:00`)
       ]);
@@ -63,41 +56,42 @@ export default function AdminDashboard() {
     setAcessosHoje(l || 0);
   };
 
-  const fetchTopRelatorios = async () => {
-    const { data } = await supabase.rpc('top_relatorios_30_dias');
-
-    if (!data) return;
-
-    setTopRelatorios(
-      data.map((r: any) => ({
-        nome: r.nome,
-        total: r.total,
-      }))
-    );
-  };
-
   const fetchLogsRecentes = async () => {
     const { data } = await supabase
-      .from('logs')
+      .from('logs_acesso')
       .select(`
         id,
         tipo_evento,
         created_at,
-        usuarios ( nome ),
-        relatorios ( nome )
+        usuario_id,
+        relatorio_id
       `)
       .order('created_at', { ascending: false })
       .limit(5);
 
     if (!data) return;
 
+    // Fetch related names separately to avoid type issues
+    const usuarioIds = [...new Set(data.map(l => l.usuario_id))];
+    const relatorioIds = [...new Set(data.map(l => l.relatorio_id).filter(Boolean))] as string[];
+
+    const [{ data: usuarios }, { data: relatorios }] = await Promise.all([
+      supabase.from('usuarios').select('id, nome').in('id', usuarioIds),
+      relatorioIds.length > 0
+        ? supabase.from('relatorios').select('id, nome').in('id', relatorioIds)
+        : Promise.resolve({ data: [] as { id: string; nome: string }[] }),
+    ]);
+
+    const usuarioMap = new Map((usuarios || []).map(u => [u.id, u.nome]));
+    const relatorioMap = new Map((relatorios || []).map(r => [r.id, r.nome]));
+
     setLogsRecentes(
       data.map(l => ({
         id: l.id,
         tipo_evento: l.tipo_evento,
         created_at: l.created_at,
-        usuario_nome: (l.usuarios as any)?.nome || '-',
-        relatorio_nome: (l.relatorios as any)?.nome || '-',
+        usuario_nome: usuarioMap.get(l.usuario_id) || '-',
+        relatorio_nome: l.relatorio_id ? relatorioMap.get(l.relatorio_id) || '-' : '-',
       }))
     );
   };
@@ -111,72 +105,21 @@ export default function AdminDashboard() {
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatsCard
-          icon={Building2}
-          label="Clientes Ativos"
-          value={clientesAtivos}
-          trend="up"
-        />
-        <StatsCard
-          icon={Users}
-          label="Usuários Ativos"
-          value={usuariosAtivos}
-          trend="up"
-        />
-        <StatsCard
-          icon={FileText}
-          label="Relatórios Ativos"
-          value={relatoriosAtivos}
-          trend="up"
-        />
-        <StatsCard
-          icon={Activity}
-          label="Acessos Hoje"
-          value={acessosHoje}
-          trend="neutral"
-        />
+        <StatsCard icon={Building2} label="Clientes Ativos" value={clientesAtivos} trend="up" />
+        <StatsCard icon={Users} label="Usuários Ativos" value={usuariosAtivos} trend="up" />
+        <StatsCard icon={FileText} label="Relatórios Ativos" value={relatoriosAtivos} trend="up" />
+        <StatsCard icon={Activity} label="Acessos Hoje" value={acessosHoje} trend="neutral" />
       </div>
 
-      {/* Cards */}
+      {/* Logs Recentes */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Relatórios */}
-        <div className="p-6 rounded-2xl glass-card">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-accent" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground">
-                Relatórios Mais Acessados
-              </h3>
-              <p className="text-sm text-muted-foreground">Últimos 30 dias</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {topRelatorios.map((r, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <span className="text-sm font-medium">
-                  {i + 1}. {r.nome}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  {r.total} acessos
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Logs Recentes */}
         <div className="p-6 rounded-2xl glass-card">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
               <Clock className="w-5 h-5 text-accent" />
             </div>
             <div>
-              <h3 className="font-semibold text-foreground">
-                Atividade Recente
-              </h3>
+              <h3 className="font-semibold text-foreground">Atividade Recente</h3>
               <p className="text-sm text-muted-foreground">Últimos eventos</p>
             </div>
           </div>
@@ -187,9 +130,7 @@ export default function AdminDashboard() {
                 <div className="w-2 h-2 rounded-full bg-accent" />
                 <div>
                   <p className="text-sm">
-                    <span className="font-medium">
-                      {log.usuario_nome}
-                    </span>{' '}
+                    <span className="font-medium">{log.usuario_nome}</span>{' '}
                     realizou {log.tipo_evento}
                   </p>
                   <p className="text-xs text-muted-foreground">

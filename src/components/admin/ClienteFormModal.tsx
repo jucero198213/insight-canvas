@@ -9,9 +9,10 @@ import { toast } from 'sonner';
 interface ClienteFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
-export function ClienteFormModal({ open, onOpenChange }: ClienteFormModalProps) {
+export function ClienteFormModal({ open, onOpenChange, onSuccess }: ClienteFormModalProps) {
   const [formData, setFormData] = useState({
     nome_cliente: '',
     logo_url: '',

@@ -15,9 +15,9 @@ interface LogAcesso {
   tipo_evento: string;
   ip_origem: string | null;
   created_at: string;
-  usuarios?: { nome: string };
-  clientes?: { nome: string };
-  relatorios?: { nome: string };
+  usuario_nome?: string;
+  cliente_nome?: string;
+  relatorio_nome?: string;
 }
 
 export default function AdminLogs() {
@@ -31,23 +31,45 @@ export default function AdminLogs() {
 
     const { data, error } = await supabase
       .from('logs_acesso')
-      .select(`
-        id,
-        tipo_evento,
-        ip_origem,
-        created_at,
-        usuarios ( nome ),
-        clientes ( nome ),
-        relatorios ( nome )
-      `)
+      .select('id, tipo_evento, ip_origem, created_at, usuario_id, cliente_id, relatorio_id')
       .order('created_at', { ascending: false });
 
     if (error) {
       console.error(error);
       toast.error('Erro ao carregar logs');
-    } else {
-      setLogs(data || []);
+      setLoading(false);
+      return;
     }
+
+    if (!data || data.length === 0) {
+      setLogs([]);
+      setLoading(false);
+      return;
+    }
+
+    // Fetch related names
+    const usuarioIds = [...new Set(data.map(l => l.usuario_id))];
+    const clienteIds = [...new Set(data.map(l => l.cliente_id))];
+    const relatorioIds = [...new Set(data.map(l => l.relatorio_id).filter(Boolean))] as string[];
+
+    const [{ data: usuarios }, { data: clientes }, { data: relatorios }] = await Promise.all([
+      supabase.from('usuarios').select('id, nome').in('id', usuarioIds),
+      supabase.from('clientes').select('id, nome').in('id', clienteIds),
+      relatorioIds.length > 0
+        ? supabase.from('relatorios').select('id, nome').in('id', relatorioIds)
+        : Promise.resolve({ data: [] as { id: string; nome: string }[] }),
+    ]);
+
+    const usuarioMap = new Map((usuarios || []).map(u => [u.id, u.nome]));
+    const clienteMap = new Map((clientes || []).map(c => [c.id, c.nome]));
+    const relatorioMap = new Map((relatorios || []).map(r => [r.id, r.nome]));
+
+    setLogs(data.map(l => ({
+      ...l,
+      usuario_nome: usuarioMap.get(l.usuario_id) || '-',
+      cliente_nome: clienteMap.get(l.cliente_id) || '-',
+      relatorio_nome: l.relatorio_id ? relatorioMap.get(l.relatorio_id) || '-' : '-',
+    })));
 
     setLoading(false);
   };
@@ -57,8 +79,8 @@ export default function AdminLogs() {
   }, []);
 
   const filteredLogs = logs.filter(log => {
-    const user = log.usuarios?.nome?.toLowerCase() || '';
-    const cliente = log.clientes?.nome?.toLowerCase() || '';
+    const user = log.usuario_nome?.toLowerCase() || '';
+    const cliente = log.cliente_nome?.toLowerCase() || '';
     return (
       user.includes(searchQuery.toLowerCase()) ||
       cliente.includes(searchQuery.toLowerCase())
@@ -68,10 +90,10 @@ export default function AdminLogs() {
   const handleExport = async () => {
     const exportData = filteredLogs.map(log => ({
       'Data/Hora': new Date(log.created_at).toLocaleString('pt-BR'),
-      'Usuário': log.usuarios?.nome || '-',
-      'Cliente': log.clientes?.nome || '-',
+      'Usuário': log.usuario_nome || '-',
+      'Cliente': log.cliente_nome || '-',
       'Evento': log.tipo_evento,
-      'Relatório': log.relatorios?.nome || '-',
+      'Relatório': log.relatorio_nome || '-',
       'IP': log.ip_origem || '-',
     }));
 
@@ -90,23 +112,20 @@ export default function AdminLogs() {
       render: (v: string) => new Date(v).toLocaleString('pt-BR'),
     },
     {
-      key: 'usuarios.nome',
+      key: 'usuario_nome',
       header: 'Usuário',
-      render: (_: any, row: LogAcesso) => row.usuarios?.nome || '-',
     },
     {
-      key: 'clientes.nome',
+      key: 'cliente_nome',
       header: 'Cliente',
-      render: (_: any, row: LogAcesso) => row.clientes?.nome || '-',
     },
     {
       key: 'tipo_evento',
       header: 'Evento',
     },
     {
-      key: 'relatorios.nome',
+      key: 'relatorio_nome',
       header: 'Relatório',
-      render: (_: any, row: LogAcesso) => row.relatorios?.nome || '-',
     },
     {
       key: 'ip_origem',
