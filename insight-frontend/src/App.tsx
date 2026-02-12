@@ -5,6 +5,9 @@ import {
   useLocation,
 } from "react-router-dom";
 import PowerBIReport from "./components/PowerBIEmbed";
+import Landing from "./pages/Landing";
+import Login from "./pages/Login";
+import Portal from "./pages/Portal";
 
 function ReportPage() {
   const { reportKey } = useParams();
@@ -31,20 +34,16 @@ function ReportPage() {
 export default function App() {
   return (
     <Routes>
-      {/* NÃO REDIRECIONA ROOT */}
+      {/* Landing page */}
+      <Route path="/" element={<Landing />} />
+
+      {/* Auth & Portal */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/portal" element={<Portal />} />
+
+      {/* Rotas existentes — NÃO ALTERADAS */}
       <Route path="/relatorios/:reportKey" element={<ReportPage />} />
       <Route path="/embed/:reportKey" element={<ReportPage />} />
-
-      {/* Fallback desativado para evitar conflito com a raiz */}
-      {/* <Route
-        path="*"
-        element={
-          <div style={{ padding: 40 }}>
-            <h1>AnalyticsPro</h1>
-            <p>Aplicação de relatórios</p>
-          </div>
-        }
-      /> */}
     </Routes>
   );
 }
