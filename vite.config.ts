@@ -18,4 +18,12 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    exclude: ['insight-frontend', 'insight-backend']
+  },
+  build: {
+    commonjsOptions: {
+      transformMixedEsModules: true,
+    }
+  }
 }));
