@@ -10,9 +10,10 @@ import { toast } from 'sonner';
 interface RelatorioFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
-export function RelatorioFormModal({ open, onOpenChange }: RelatorioFormModalProps) {
+export function RelatorioFormModal({ open, onOpenChange, onSuccess }: RelatorioFormModalProps) {
   const [formData, setFormData] = useState({
     nome_relatorio: '',
     id_cliente: '',

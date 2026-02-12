@@ -9,9 +9,10 @@ import { toast } from 'sonner';
 interface PermissaoFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
-export function PermissaoFormModal({ open, onOpenChange }: PermissaoFormModalProps) {
+export function PermissaoFormModal({ open, onOpenChange, onSuccess }: PermissaoFormModalProps) {
   const [formData, setFormData] = useState({
     id_cliente: '',
     id_usuario: '',
