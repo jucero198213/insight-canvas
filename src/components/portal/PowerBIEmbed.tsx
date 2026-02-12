@@ -42,15 +42,15 @@ export function PowerBIEmbed({ report, onClose }: PowerBIEmbedProps) {
 
         // Mapeamento do reportId para a key esperada pelo seu backend (financeiro, dre, compras)
         // Se o nome do relatório contiver a palavra, usamos a chave correspondente
-        let reportKey = 'financeiro';
         const nomeLower = report.nome.toLowerCase();
         
         // Mapeamento inteligente baseado no nome do relatório
+        let reportKey = 'financeiro';
         if (nomeLower.includes('dre')) {
           reportKey = 'dre';
         } else if (nomeLower.includes('compra')) {
           reportKey = 'compras';
-        } else if (nomeLower.includes('faturamento') || nomeLower.includes('financeiro') || nomeLower.includes('relatório financeiro')) {
+        } else if (nomeLower.includes('faturamento') || nomeLower.includes('financeiro') || nomeLower.includes('relatório financeiro') || nomeLower.includes('relatorio financeiro')) {
           reportKey = 'financeiro';
         }
 
