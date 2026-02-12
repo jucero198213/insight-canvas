@@ -2,10 +2,23 @@ import { Button } from '@/components/ui/button';
 import { useTenant } from '@/contexts/TenantContext';
 import { ArrowRight, BarChart3, Shield, Zap, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 
 export function Hero() {
-  const { tenant } = useTenant();
   const navigate = useNavigate();
+  let tenantContext;
+  
+  try {
+    tenantContext = useTenant();
+  } catch (e) {
+    console.error('[Hero] Failed to get tenant context:', e);
+  }
+
+  const tenant = tenantContext?.tenant || { nome: 'AnalyticsPro' };
+
+  useEffect(() => {
+    console.info('[Hero] Component mounted');
+  }, []);
 
   return (
     <section className="relative min-h-screen hero-gradient overflow-hidden">
