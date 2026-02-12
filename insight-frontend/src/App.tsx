@@ -35,8 +35,8 @@ export default function App() {
       <Route path="/relatorios/:reportKey" element={<ReportPage />} />
       <Route path="/embed/:reportKey" element={<ReportPage />} />
 
-      {/* Fallback simples */}
-      <Route
+      {/* Fallback desativado para evitar conflito com a raiz */}
+      {/* <Route
         path="*"
         element={
           <div style={{ padding: 40 }}>
@@ -44,7 +44,7 @@ export default function App() {
             <p>Aplicação de relatórios</p>
           </div>
         }
-      />
+      /> */}
     </Routes>
   );
 }

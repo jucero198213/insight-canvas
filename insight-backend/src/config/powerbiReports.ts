@@ -23,15 +23,18 @@ export const powerbiReports: Record<string, PowerBIReportConfig> = {
   financeiro: {
     workspaceId: process.env.POWERBI_WORKSPACE_ID!,
     reportId: process.env.POWERBI_REPORT_ID_FINANCEIRO!,
+    datasetId: process.env.POWERBI_DATASET_ID_FINANCEIRO,
   },
 
   dre: {
     workspaceId: process.env.POWERBI_WORKSPACE_ID!,
     reportId: process.env.POWERBI_REPORT_ID_DRE!,
+    datasetId: process.env.POWERBI_DATASET_ID_DRE,
   },
 
   compras: {
     workspaceId: process.env.POWERBI_WORKSPACE_ID!,
     reportId: process.env.POWERBI_REPORT_ID_COMPRAS!,
+    datasetId: process.env.POWERBI_DATASET_ID_COMPRAS,
   },
 };

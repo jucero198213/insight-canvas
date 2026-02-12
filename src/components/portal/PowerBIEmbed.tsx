@@ -50,7 +50,7 @@ export function PowerBIEmbed({ report, onClose }: PowerBIEmbedProps) {
           reportKey = 'dre';
         } else if (nomeLower.includes('compra')) {
           reportKey = 'compras';
-        } else if (nomeLower.includes('faturamento') || nomeLower.includes('financeiro')) {
+        } else if (nomeLower.includes('faturamento') || nomeLower.includes('financeiro') || nomeLower.includes('relatório financeiro')) {
           reportKey = 'financeiro';
         }
 

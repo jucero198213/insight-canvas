@@ -22,6 +22,9 @@ No painel da Render, crie um **Web Service** conectado ao seu repositório.
 | `POWERBI_REPORT_ID_FINANCEIRO` | ID do Relatório Financeiro |
 | `POWERBI_REPORT_ID_DRE` | ID do Relatório DRE |
 | `POWERBI_REPORT_ID_COMPRAS` | ID do Relatório de Compras |
+| `POWERBI_DATASET_ID_FINANCEIRO` | (Opcional) ID do Dataset Financeiro |
+| `POWERBI_DATASET_ID_DRE` | (Opcional) ID do Dataset DRE |
+| `POWERBI_DATASET_ID_COMPRAS` | (Opcional) ID do Dataset de Compras |
 
 ---
 
