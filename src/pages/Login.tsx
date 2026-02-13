@@ -24,7 +24,6 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{ email?: string; password?: string }>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -55,8 +54,6 @@ export default function Login() {
       return;
     }
 
-    setIsSubmitting(true);
-
     try {
       const { success, error: loginError } = await login(email, password);
       
@@ -69,12 +66,10 @@ export default function Login() {
     } catch (err) {
       console.error('Login error:', err);
       toast.error('Erro ao fazer login. Tente novamente.');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
-  const isButtonDisabled = isLoading || isSubmitting;
+  const isButtonDisabled = isLoading;
 
   return (
     <div className="min-h-screen flex">
@@ -203,7 +198,7 @@ export default function Login() {
               className="w-full" 
               disabled={isButtonDisabled}
             >
-              {isSubmitting ? (
+              {isLoading ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
                   Entrando...
