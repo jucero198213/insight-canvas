@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
+import type { Session } from '@supabase/supabase-js';
 
 export interface AuthUser {
   id: string;
@@ -24,7 +25,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }): React.ReactElement {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('[Auth] Error fetching roles:', rolesError);
       }
 
-      const userRoles = roles?.map((r: any) => r.role) || ['user'];
+      const userRoles = roles?.map((r: { role: string }) => r.role) || ['user'];
       const isAdmin = userRoles.includes('admin');
       const clienteData = usuario.clientes as { id: string; nome: string } | null;
 
@@ -97,19 +98,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initialize();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
+      async (event, newSession) => {
         if (event === 'SIGNED_OUT') {
           setUser(null);
         } else if (event === 'SIGNED_IN' && newSession?.user) {
-          setTimeout(async () => {
-            const userProfile = await fetchUserProfile(newSession.user.id);
-            if (userProfile) setUser(userProfile);
-          }, 0);
+          const userProfile = await fetchUserProfile(newSession.user.id);
+          if (userProfile) setUser(userProfile);
         }
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
@@ -157,7 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = async () => {
+  const logout = async (): Promise<void> => {
     setIsLoading(true);
     try {
       await supabase.auth.signOut();
@@ -185,7 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useAuth() {
+export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
