@@ -5,6 +5,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import PowerBIReport from "./components/PowerBIEmbed";
+import { AuthProvider } from "./contexts/AuthContext";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Portal from "./pages/Portal";
@@ -33,17 +34,19 @@ function ReportPage() {
 
 export default function App() {
   return (
-    <Routes>
-      {/* Landing page */}
-      <Route path="/" element={<Landing />} />
+    <AuthProvider>
+      <Routes>
+        {/* Landing page */}
+        <Route path="/" element={<Landing />} />
 
-      {/* Auth & Portal */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/portal" element={<Portal />} />
+        {/* Auth & Portal */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/portal" element={<Portal />} />
 
-      {/* Rotas existentes — NÃO ALTERADAS */}
-      <Route path="/relatorios/:reportKey" element={<ReportPage />} />
-      <Route path="/embed/:reportKey" element={<ReportPage />} />
-    </Routes>
+        {/* Rotas existentes — NÃO ALTERADAS */}
+        <Route path="/relatorios/:reportKey" element={<ReportPage />} />
+        <Route path="/embed/:reportKey" element={<ReportPage />} />
+      </Routes>
+    </AuthProvider>
   );
 }
