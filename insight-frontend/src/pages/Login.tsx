@@ -1,15 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { login, isAuthenticated, isLoading, error, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/portal');
+    }
+  }, [isAuthenticated, navigate]);
+
+  useEffect(() => {
+    clearError();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: integrar autenticação real
-    navigate('/portal');
+    clearError();
+    const { success } = await login(email, password);
+    if (success) {
+      navigate('/portal');
+    }
   };
 
   return (
@@ -35,17 +50,28 @@ export default function Login() {
           <p style={{ color: 'hsla(210,40%,98%,0.6)', fontSize: 14 }}>Acesse sua conta para visualizar seus relatórios</p>
         </div>
 
+        {error && (
+          <div style={{
+            marginBottom: 16, padding: '10px 14px', borderRadius: 8,
+            background: 'hsla(0,70%,50%,0.15)', border: '1px solid hsla(0,70%,50%,0.3)',
+            color: 'hsl(0 80% 70%)', fontSize: 13,
+          }}>
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: 'hsla(210,40%,98%,0.8)', marginBottom: 6 }}>Email</label>
             <input
               type="email" value={email} onChange={e => setEmail(e.target.value)} required
               placeholder="seu@email.com"
+              disabled={isLoading}
               style={{
                 width: '100%', padding: '10px 14px', borderRadius: 8,
                 border: '1px solid hsla(210,40%,98%,0.2)', background: 'hsla(210,40%,98%,0.05)',
                 color: 'hsl(210 40% 98%)', fontSize: 14, outline: 'none',
-                boxSizing: 'border-box',
+                boxSizing: 'border-box', opacity: isLoading ? 0.6 : 1,
               }}
             />
           </div>
@@ -54,24 +80,26 @@ export default function Login() {
             <input
               type="password" value={password} onChange={e => setPassword(e.target.value)} required
               placeholder="••••••••"
+              disabled={isLoading}
               style={{
                 width: '100%', padding: '10px 14px', borderRadius: 8,
                 border: '1px solid hsla(210,40%,98%,0.2)', background: 'hsla(210,40%,98%,0.05)',
                 color: 'hsl(210 40% 98%)', fontSize: 14, outline: 'none',
-                boxSizing: 'border-box',
+                boxSizing: 'border-box', opacity: isLoading ? 0.6 : 1,
               }}
             />
           </div>
-          <button type="submit" style={{
+          <button type="submit" disabled={isLoading} style={{
             marginTop: 8, padding: '12px 24px', borderRadius: 10, border: 'none',
-            background: 'linear-gradient(135deg, hsl(187 92% 41%) 0%, hsl(199 89% 48%) 100%)',
-            color: 'hsl(210 40% 98%)', fontSize: 16, fontWeight: 600, cursor: 'pointer',
-            transition: 'transform 0.2s',
+            background: isLoading ? 'hsl(187 50% 35%)' : 'linear-gradient(135deg, hsl(187 92% 41%) 0%, hsl(199 89% 48%) 100%)',
+            color: 'hsl(210 40% 98%)', fontSize: 16, fontWeight: 600,
+            cursor: isLoading ? 'not-allowed' : 'pointer',
+            transition: 'transform 0.2s', opacity: isLoading ? 0.7 : 1,
           }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseEnter={e => { if (!isLoading) e.currentTarget.style.transform = 'translateY(-1px)'; }}
             onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
           >
-            Entrar
+            {isLoading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
 
