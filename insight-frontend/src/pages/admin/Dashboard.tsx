@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import PageContainer from '../../components/ui/PageContainer';
+import PageHeader from '../../components/ui/PageHeader';
 
 interface LogRecente {
   id: string;
@@ -43,40 +45,130 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div>
-      <h1 style={{ fontSize: 28, fontWeight: 700, color: 'hsl(210 40% 98%)', marginBottom: 8 }}>Dashboard</h1>
-      <p style={{ color: 'hsla(210,40%,98%,0.5)', marginBottom: 32 }}>Visão geral do sistema</p>
+    <PageContainer>
+      <PageHeader
+        title="Dashboard"
+        subtitle="Visão geral do sistema"
+      />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20, marginBottom: 40 }}>
+      {/* Stats */}
+      <div style={styles.grid}>
         {statCards.map(s => (
-          <div key={s.label} style={{ padding: 24, borderRadius: 16, background: 'hsla(210,40%,98%,0.03)', border: '1px solid hsla(210,40%,98%,0.08)' }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>{s.emoji}</div>
-            <p style={{ fontSize: 32, fontWeight: 700, color: 'hsl(210 40% 98%)', marginBottom: 4 }}>{s.value}</p>
-            <p style={{ fontSize: 14, color: 'hsla(210,40%,98%,0.5)' }}>{s.label}</p>
+          <div key={s.label} style={styles.card}>
+            <div style={styles.cardEmoji}>{s.emoji}</div>
+            <p style={styles.cardValue}>{s.value}</p>
+            <p style={styles.cardLabel}>{s.label}</p>
           </div>
         ))}
       </div>
 
-      <div style={{ padding: 24, borderRadius: 16, background: 'hsla(210,40%,98%,0.03)', border: '1px solid hsla(210,40%,98%,0.08)' }}>
-        <h3 style={{ fontSize: 18, fontWeight: 600, color: 'hsl(210 40% 98%)', marginBottom: 20 }}>Atividade Recente</h3>
+      {/* Atividade */}
+      <div style={styles.activityBox}>
+        <h3 style={styles.activityTitle}>Atividade Recente</h3>
+
         {logs.length === 0 ? (
-          <p style={{ color: 'hsla(210,40%,98%,0.4)' }}>Nenhuma atividade recente</p>
+          <p style={styles.emptyText}>Nenhuma atividade recente</p>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={styles.activityList}>
             {logs.map(log => (
-              <div key={log.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'hsl(187 92% 41%)' }} />
+              <div key={log.id} style={styles.activityItem}>
+                <div style={styles.dot} />
                 <div>
-                  <p style={{ fontSize: 14, color: 'hsl(210 40% 98%)' }}>
+                  <p style={styles.activityText}>
                     <strong>{log.usuario_nome}</strong> — {log.tipo_evento}
                   </p>
-                  <p style={{ fontSize: 12, color: 'hsla(210,40%,98%,0.4)' }}>{new Date(log.created_at).toLocaleString('pt-BR')}</p>
+                  <p style={styles.activityDate}>
+                    {new Date(log.created_at).toLocaleString('pt-BR')}
+                  </p>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
-    </div>
+    </PageContainer>
   );
 }
+
+const styles = {
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gap: 20,
+    marginBottom: 36,
+  },
+
+  card: {
+    padding: 24,
+    borderRadius: 18,
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    backdropFilter: 'blur(6px)',
+    transition: 'all .2s ease',
+  },
+
+  cardEmoji: {
+    fontSize: 26,
+    marginBottom: 8,
+  },
+
+  cardValue: {
+    fontSize: 30,
+    fontWeight: 700,
+    color: '#F1F5F9',
+    marginBottom: 4,
+  },
+
+  cardLabel: {
+    fontSize: 13,
+    color: 'rgba(241,245,249,0.5)',
+  },
+
+  activityBox: {
+    padding: 24,
+    borderRadius: 18,
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.08)',
+  },
+
+  activityTitle: {
+    fontSize: 17,
+    fontWeight: 600,
+    color: '#F1F5F9',
+    marginBottom: 18,
+  },
+
+  emptyText: {
+    color: 'rgba(241,245,249,0.4)',
+  },
+
+  activityList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 14,
+  },
+
+  activityItem: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: '50%',
+    background: '#22d3ee',
+    marginTop: 6,
+  },
+
+  activityText: {
+    fontSize: 14,
+    color: '#F1F5F9',
+  },
+
+  activityDate: {
+    fontSize: 12,
+    color: 'rgba(241,245,249,0.4)',
+  },
+};
