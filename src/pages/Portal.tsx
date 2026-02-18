@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/contexts/TenantContext';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/safeSupabaseClient';
 import { ReportCard } from '@/components/portal/ReportCard';
 import { PowerBIEmbed } from '@/components/portal/PowerBIEmbed';
 import { Button } from '@/components/ui/button';

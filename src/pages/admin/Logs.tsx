@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/safeSupabaseClient';
 import { DataTable } from '@/components/admin/DataTable';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
