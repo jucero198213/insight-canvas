@@ -93,82 +93,107 @@ export default function AdminDashboard() {
 const styles = {
   grid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-    gap: 20,
-    marginBottom: 36,
+    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+    gap: 22,
+    marginBottom: 40,
   },
 
   card: {
-    padding: 24,
-    borderRadius: 18,
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    backdropFilter: 'blur(6px)',
-    transition: 'all .2s ease',
+    padding: 26,
+    borderRadius: 22,
+    background: `
+      linear-gradient(180deg, rgba(17,24,39,0.95), rgba(17,24,39,0.65))
+    `,
+    border: '1px solid rgba(255,255,255,0.06)',
+    boxShadow: `
+      0 10px 30px rgba(0,0,0,0.35),
+      inset 0 1px rgba(255,255,255,0.04)
+    `,
+    backdropFilter: 'blur(10px)',
+    transition: 'all .25s cubic-bezier(.4,0,.2,1)',
+    position: 'relative',
+    overflow: 'hidden',
   },
 
   cardEmoji: {
     fontSize: 26,
-    marginBottom: 8,
+    marginBottom: 10,
+    opacity: 0.9,
   },
 
   cardValue: {
-    fontSize: 30,
-    fontWeight: 700,
-    color: '#F1F5F9',
+    fontSize: 32,
+    fontWeight: 600, // mais elegante que 700
+    color: '#F9FAFB',
     marginBottom: 4,
+    letterSpacing: '-0.02em',
+    textShadow: '0 0 18px rgba(59,130,246,0.25)', // glow sutil
   },
 
   cardLabel: {
     fontSize: 13,
-    color: 'rgba(241,245,249,0.5)',
+    color: 'rgba(229,231,235,0.55)',
+    letterSpacing: '-0.01em',
   },
 
   activityBox: {
-    padding: 24,
-    borderRadius: 18,
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(255,255,255,0.08)',
+    padding: 26,
+    borderRadius: 22,
+    background: `
+      linear-gradient(180deg, rgba(17,24,39,0.85), rgba(17,24,39,0.6))
+    `,
+    border: '1px solid rgba(255,255,255,0.06)',
+    boxShadow: `
+      0 8px 25px rgba(0,0,0,0.3),
+      inset 0 1px rgba(255,255,255,0.04)
+    `,
   },
 
   activityTitle: {
     fontSize: 17,
     fontWeight: 600,
-    color: '#F1F5F9',
-    marginBottom: 18,
+    color: '#F9FAFB',
+    marginBottom: 20,
+    letterSpacing: '-0.01em',
   },
 
   emptyText: {
-    color: 'rgba(241,245,249,0.4)',
+    color: 'rgba(229,231,235,0.4)',
+    fontSize: 14,
   },
 
   activityList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 14,
+    gap: 16,
   },
 
   activityItem: {
     display: 'flex',
     alignItems: 'flex-start',
     gap: 12,
+    padding: '10px 0',
+    borderBottom: '1px solid rgba(255,255,255,0.04)',
   },
 
   dot: {
     width: 8,
     height: 8,
     borderRadius: '50%',
-    background: '#22d3ee',
+    background: '#38BDF8',
     marginTop: 6,
+    boxShadow: '0 0 10px rgba(56,189,248,0.6)',
   },
 
   activityText: {
     fontSize: 14,
-    color: '#F1F5F9',
+    color: '#E5E7EB',
+    lineHeight: 1.4,
   },
 
   activityDate: {
     fontSize: 12,
-    color: 'rgba(241,245,249,0.4)',
+    color: 'rgba(229,231,235,0.45)',
+    marginTop: 2,
   },
 };
