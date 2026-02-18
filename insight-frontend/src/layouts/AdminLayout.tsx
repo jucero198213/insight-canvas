@@ -24,8 +24,8 @@ export default function AdminLayout() {
 
   if (isLoading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'hsl(222 47% 8%)' }}>
-        <p style={{ color: 'hsla(210,40%,98%,0.5)' }}>Carregando...</p>
+      <div style={styles.loading}>
+        <p style={styles.loadingText}>Carregando...</p>
       </div>
     );
   }
@@ -38,40 +38,39 @@ export default function AdminLayout() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', background: 'hsl(222 47% 8%)', fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div style={styles.wrapper}>
       {/* Sidebar */}
-      <aside style={{
-        width: 260, minHeight: '100vh', position: 'fixed', top: 0, left: 0,
-        background: 'hsl(217 91% 12%)', borderRight: '1px solid hsla(210,40%,98%,0.08)',
-        display: 'flex', flexDirection: 'column',
-      }}>
+      <aside style={styles.sidebar}>
         {/* Logo */}
-        <div style={{ padding: '24px 20px', borderBottom: '1px solid hsla(210,40%,98%,0.08)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, hsl(187 92% 41%), hsl(199 89% 48%))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="hsl(210 40% 98%)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
+        <div style={styles.logoBlock}>
+          <div style={styles.logoRow}>
+            <div style={styles.logoIcon}>
+              📊
             </div>
             <div>
-              <span style={{ fontSize: 16, fontWeight: 700, color: 'hsl(210 40% 98%)' }}>AnalyticsPro</span>
-              <p style={{ fontSize: 11, color: 'hsla(210,40%,98%,0.4)', margin: 0 }}>Administração</p>
+              <span style={styles.logoTitle}>AnalyticsPro</span>
+              <p style={styles.logoSubtitle}>Administração</p>
             </div>
           </div>
         </div>
 
         {/* Nav */}
-        <nav style={{ flex: 1, padding: '16px 12px' }}>
+        <nav style={styles.nav}>
           {navItems.map(item => {
-            const isActive = location.pathname === item.path || (item.path !== '/admin' && location.pathname.startsWith(item.path));
+            const isActive =
+              location.pathname === item.path ||
+              (item.path !== '/admin' && location.pathname.startsWith(item.path));
+
             return (
-              <button key={item.path} onClick={() => navigate(item.path)} style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-                padding: '10px 12px', borderRadius: 8, border: 'none',
-                background: isActive ? 'hsla(187,92%,41%,0.15)' : 'transparent',
-                color: isActive ? 'hsl(187 92% 41%)' : 'hsla(210,40%,98%,0.6)',
-                fontSize: 14, fontWeight: isActive ? 600 : 400, cursor: 'pointer',
-                marginBottom: 4, textAlign: 'left',
-              }}>
-                <span>{item.icon}</span>
+              <button
+                key={item.path}
+                onClick={() => navigate(item.path)}
+                style={{
+                  ...styles.navItem,
+                  ...(isActive ? styles.navItemActive : {}),
+                }}
+              >
+                <span style={styles.navIcon}>{item.icon}</span>
                 {item.label}
               </button>
             );
@@ -79,26 +78,180 @@ export default function AdminLayout() {
         </nav>
 
         {/* Bottom */}
-        <div style={{ padding: '16px 12px', borderTop: '1px solid hsla(210,40%,98%,0.08)' }}>
-          <button onClick={() => navigate('/portal')} style={{
-            width: '100%', padding: '10px 12px', borderRadius: 8, border: 'none',
-            background: 'transparent', color: 'hsla(210,40%,98%,0.5)', fontSize: 13, cursor: 'pointer', textAlign: 'left', marginBottom: 4,
-          }}>← Voltar ao Portal</button>
-          <button onClick={handleLogout} style={{
-            width: '100%', padding: '10px 12px', borderRadius: 8, border: 'none',
-            background: 'transparent', color: 'hsla(0,70%,60%,0.8)', fontSize: 13, cursor: 'pointer', textAlign: 'left',
-          }}>Sair</button>
-          <div style={{ marginTop: 12, padding: '8px 12px' }}>
-            <p style={{ fontSize: 13, fontWeight: 500, color: 'hsl(210 40% 98%)', margin: 0 }}>{user.nome}</p>
-            <p style={{ fontSize: 11, color: 'hsla(210,40%,98%,0.4)', margin: 0 }}>{user.email}</p>
+        <div style={styles.bottom}>
+          <button style={styles.secondaryBtn} onClick={() => navigate('/portal')}>
+            ← Voltar ao Portal
+          </button>
+
+          <button style={styles.logoutBtn} onClick={handleLogout}>
+            Sair
+          </button>
+
+          <div style={styles.userBox}>
+            <p style={styles.userName}>{user.nome}</p>
+            <p style={styles.userEmail}>{user.email}</p>
           </div>
         </div>
       </aside>
 
-      {/* Main content */}
-      <main style={{ marginLeft: 260, flex: 1, padding: 32 }}>
+      {/* Conteúdo */}
+      <main style={styles.main}>
         <Outlet />
       </main>
     </div>
   );
 }
+
+const styles = {
+  wrapper: {
+    minHeight: '100vh',
+    display: 'flex',
+    background: '#0B1220',
+    fontFamily: "'Inter', system-ui, sans-serif",
+  },
+
+  sidebar: {
+    width: 260,
+    minHeight: '100vh',
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    background: '#0F172A',
+    borderRight: '1px solid rgba(255,255,255,0.06)',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+
+  logoBlock: {
+    padding: '22px 20px',
+    borderBottom: '1px solid rgba(255,255,255,0.06)',
+  },
+
+  logoRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+  },
+
+  logoIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    background: 'linear-gradient(135deg, #22d3ee, #3b82f6)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 18,
+  },
+
+  logoTitle: {
+    fontSize: 16,
+    fontWeight: 700,
+    color: '#F1F5F9',
+  },
+
+  logoSubtitle: {
+    fontSize: 11,
+    color: 'rgba(241,245,249,0.4)',
+    margin: 0,
+  },
+
+  nav: {
+    flex: 1,
+    padding: '16px 12px',
+  },
+
+  navItem: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    padding: '11px 12px',
+    borderRadius: 10,
+    border: 'none',
+    background: 'transparent',
+    color: 'rgba(241,245,249,0.6)',
+    fontSize: 14,
+    cursor: 'pointer',
+    marginBottom: 6,
+    textAlign: 'left',
+    transition: 'all .18s ease',
+  },
+
+  navItemActive: {
+    background: 'rgba(59,130,246,0.15)',
+    color: '#60A5FA',
+    fontWeight: 600,
+  },
+
+  navIcon: {
+    fontSize: 16,
+  },
+
+  bottom: {
+    padding: '16px 12px',
+    borderTop: '1px solid rgba(255,255,255,0.06)',
+  },
+
+  secondaryBtn: {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 8,
+    border: 'none',
+    background: 'transparent',
+    color: 'rgba(241,245,249,0.5)',
+    fontSize: 13,
+    cursor: 'pointer',
+    textAlign: 'left',
+    marginBottom: 4,
+  },
+
+  logoutBtn: {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 8,
+    border: 'none',
+    background: 'transparent',
+    color: '#f87171',
+    fontSize: 13,
+    cursor: 'pointer',
+    textAlign: 'left',
+  },
+
+  userBox: {
+    marginTop: 12,
+    padding: '8px 12px',
+  },
+
+  userName: {
+    fontSize: 13,
+    fontWeight: 500,
+    color: '#F1F5F9',
+    margin: 0,
+  },
+
+  userEmail: {
+    fontSize: 11,
+    color: 'rgba(241,245,249,0.4)',
+    margin: 0,
+  },
+
+  main: {
+    marginLeft: 260,
+    flex: 1,
+    padding: 32,
+    background: '#0B1220',
+  },
+
+  loading: {
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: '#0B1220',
+  },
+
+  loadingText: {
+    color: 'rgba(241,245,249,0.5)',
+  },
+};
