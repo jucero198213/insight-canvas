@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { AdminTable } from '../../components/admin/AdminTable';
 
@@ -23,17 +23,21 @@ export default function AdminClientes() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
+  const modalRef = useRef<HTMLDivElement>(null);
+
   const [form, setForm] = useState({
     nome: '',
     cor_primaria: '#0ea5e9',
     status: 'ativo'
   });
 
+  // ================= TOAST =================
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
   };
 
+  // ================= FETCH =================
   const fetch = async () => {
     setLoading(true);
     const { data } = await supabase
@@ -47,12 +51,24 @@ export default function AdminClientes() {
 
   useEffect(() => { fetch(); }, []);
 
+  // ESC fecha modal
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpenModal(false);
+        setDeleteId(null);
+        setMenuOpen(null);
+      }
+    };
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, []);
+
   const filtered = clientes.filter(c =>
     c.nome.toLowerCase().includes(search.toLowerCase())
   );
 
   // ================= CRUD =================
-
   const resetForm = () => {
     setForm({ nome: '', cor_primaria: '#0ea5e9', status: 'ativo' });
     setEditing(null);
@@ -90,7 +106,6 @@ export default function AdminClientes() {
 
   const deleteCliente = async () => {
     if (!deleteId) return;
-
     await supabase.from('clientes').delete().eq('id', deleteId);
     setDeleteId(null);
     fetch();
@@ -112,8 +127,14 @@ export default function AdminClientes() {
     setMenuOpen(menuOpen === id ? null : id);
   };
 
-  // ================= TABELA =================
+  // fecha dropdown ao clicar fora
+  useEffect(() => {
+    const close = () => setMenuOpen(null);
+    window.addEventListener('click', close);
+    return () => window.removeEventListener('click', close);
+  }, []);
 
+  // ================= TABELA =================
   const columns = [
     { key: 'nome', header: 'Nome do Cliente' },
 
@@ -123,14 +144,13 @@ export default function AdminClientes() {
       render: (v: any) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
-            width: 24,
-            height: 24,
-            borderRadius: 6,
-            background: v || '#666',
-            border: '1px solid rgba(255,255,255,0.1)'
+            width: 26,
+            height: 26,
+            borderRadius: 8,
+            background: v || '#666'
           }} />
-          <span style={{ fontSize: 12, fontFamily: 'monospace', opacity: 0.8 }}>
-            {v || '-'}
+          <span style={{ fontFamily: 'monospace', opacity: 0.7 }}>
+            {v}
           </span>
         </div>
       )
@@ -141,16 +161,12 @@ export default function AdminClientes() {
       header: 'Status',
       render: (v: any) => (
         <span style={{
-          padding: '6px 12px',
+          background: '#dcfce7',
+          color: '#16a34a',
+          padding: '4px 10px',
           borderRadius: 999,
           fontSize: 12,
-          fontWeight: 600,
-          background: v === 'ativo'
-            ? 'rgba(34,197,94,0.12)'
-            : 'rgba(255,255,255,0.05)',
-          color: v === 'ativo'
-            ? '#22c55e'
-            : 'rgba(255,255,255,0.5)'
+          fontWeight: 600
         }}>
           {v === 'ativo' ? 'Ativo' : 'Inativo'}
         </span>
@@ -166,7 +182,7 @@ export default function AdminClientes() {
 
     {
       key: 'acoes',
-      header: '',
+      header: 'Ações',
       render: (_: any, row: Cliente) => (
         <div style={{ position: 'relative' }}>
           <button style={btnGhost} onClick={(e) => toggleMenu(row.id, e)}>
@@ -175,18 +191,13 @@ export default function AdminClientes() {
 
           {menuOpen === row.id && (
             <div style={dropdown}>
-              <div style={dropItem} onClick={() => showToast(row.nome)}>
-                👁 Visualizar
-              </div>
-              <div style={dropItem} onClick={() => openEdit(row)}>
-                ✏️ Editar
-              </div>
-              <div
-                style={{ ...dropItem, color: '#ef4444' }}
+              <MenuItem label="👁 Visualizar" onClick={() => showToast(row.nome)} />
+              <MenuItem label="✏️ Editar" onClick={() => openEdit(row)} />
+              <MenuItem
+                label="🗑 Excluir"
+                danger
                 onClick={() => confirmDelete(row.id)}
-              >
-                🗑 Excluir
-              </div>
+              />
             </div>
           )}
         </div>
@@ -196,7 +207,6 @@ export default function AdminClientes() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-
       {/* HEADER */}
       <div style={header}>
         <div>
@@ -205,12 +215,11 @@ export default function AdminClientes() {
         </div>
 
         <button style={heroButton} onClick={() => setOpenModal(true)}>
-          <span style={{ fontSize: 18 }}>＋</span>
-          Novo Cliente
+          ＋ Novo Cliente
         </button>
       </div>
 
-      {/* BUSCA COM ÍCONE */}
+      {/* BUSCA */}
       <div style={{ position: 'relative', maxWidth: 420 }}>
         <span style={searchIcon}>🔍</span>
         <input
@@ -223,27 +232,41 @@ export default function AdminClientes() {
 
       {/* TABELA */}
       {loading ? (
-        <div style={spinnerWrap}>
-          <div style={spinner} />
-        </div>
+        <div style={spinnerWrap}><div style={spinner} /></div>
       ) : (
         <AdminTable columns={columns} data={filtered} />
       )}
 
       {/* MODAL CREATE/EDIT */}
       {openModal && (
-        <div style={overlay}>
-          <div style={modal}>
-            <h3>{editing ? 'Editar Cliente' : 'Novo Cliente'}</h3>
+        <div style={overlay} onClick={() => setOpenModal(false)}>
+          <div
+            ref={modalRef}
+            style={modal}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* HEADER */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div>
+                <h3 style={{ fontSize: 22, fontWeight: 700 }}>
+                  {editing ? 'Editar Cliente' : 'Novo Cliente'}
+                </h3>
+                <p style={{ fontSize: 13, color: '#64748b' }}>
+                  Cadastre um novo cliente (tenant) na plataforma.
+                </p>
+              </div>
 
+              <button onClick={resetForm} style={closeX}>✕</button>
+            </div>
+
+            <label>Nome do Cliente *</label>
             <input
-              placeholder="Nome"
               value={form.nome}
               onChange={e => setForm({ ...form, nome: e.target.value })}
               style={inputStyle}
             />
 
-            <label>Cor</label>
+            <label>Cor Principal</label>
             <input
               type="color"
               value={form.cor_primaria}
@@ -254,19 +277,20 @@ export default function AdminClientes() {
             <select
               value={form.status}
               onChange={e => setForm({ ...form, status: e.target.value })}
+              style={inputStyle}
             >
               <option value="ativo">Ativo</option>
               <option value="inativo">Inativo</option>
             </select>
 
-            <div style={{ marginTop: 20, display: 'flex', gap: 8 }}>
-              <button onClick={resetForm}>Cancelar</button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button style={btnCancel} onClick={resetForm}>Cancelar</button>
               <button
                 style={btnPrimary}
                 disabled={saving}
                 onClick={editing ? updateCliente : createCliente}
               >
-                {saving ? 'Salvando...' : editing ? 'Salvar' : 'Cadastrar'}
+                {saving ? 'Salvando...' : editing ? 'Salvar' : 'Cadastrar Cliente'}
               </button>
             </div>
           </div>
@@ -275,18 +299,16 @@ export default function AdminClientes() {
 
       {/* DELETE MODAL */}
       {deleteId && (
-        <div style={overlay}>
-          <div style={modal}>
+        <div style={overlay} onClick={() => setDeleteId(null)}>
+          <div style={modal} onClick={e => e.stopPropagation()}>
             <h3>Excluir cliente?</h3>
-            <p style={{ opacity: 0.7 }}>
+            <p style={{ color: '#64748b' }}>
               Essa ação não pode ser desfeita.
             </p>
 
-            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              <button onClick={() => setDeleteId(null)}>Cancelar</button>
-              <button style={btnDanger} onClick={deleteCliente}>
-                Confirmar exclusão
-              </button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button style={btnCancel} onClick={() => setDeleteId(null)}>Cancelar</button>
+              <button style={btnDanger} onClick={deleteCliente}>Excluir</button>
             </div>
           </div>
         </div>
@@ -297,83 +319,138 @@ export default function AdminClientes() {
   );
 }
 
-// ================= VISUAL STYLES =================
+// ================= COMPONENTES =================
+const MenuItem = ({ label, onClick, danger }: any) => (
+  <div
+    onClick={onClick}
+    style={{
+      padding: '8px 12px',
+      cursor: 'pointer',
+      borderRadius: 8,
+      fontSize: 14,
+      color: danger ? '#ef4444' : '#111'
+    }}
+    onMouseEnter={e =>
+      (e.currentTarget.style.background = danger ? '#fef2f2' : '#f1f5f9')
+    }
+    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+  >
+    {label}
+  </div>
+);
 
-const header = { display: 'flex', justifyContent: 'space-between', alignItems: 'center' };
+// ================= STYLES =================
+const header = { display: 'flex', justifyContent: 'space-between' };
 const title = { fontSize: 32, fontWeight: 800 };
-const subtitle = { opacity: 0.6, marginTop: 4 };
+const subtitle = { opacity: 0.6 };
 
-const heroButton: React.CSSProperties = {
-  background: 'linear-gradient(90deg,#06b6d4,#22d3ee)',
+const heroButton = {
+  background: 'linear-gradient(90deg,#06b6d4,#67e8f9)',
   border: 'none',
   padding: '10px 18px',
-  borderRadius: 10,
+  borderRadius: 12,
   color: '#fff',
   fontWeight: 600,
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-  cursor: 'pointer'
+  cursor: 'pointer',
+  boxShadow: '0 8px 20px rgba(0,0,0,0.15)'
 };
 
-const searchInput: React.CSSProperties = {
+const searchInput = {
   width: '100%',
   padding: '12px 16px 12px 38px',
   borderRadius: 10,
-  border: '1px solid rgba(255,255,255,0.1)',
-  background: 'rgba(255,255,255,0.05)'
+  border: '1px solid #e2e8f0'
 };
-
-const searchIcon: React.CSSProperties = {
-  position: 'absolute',
-  left: 12,
-  top: '50%',
-  transform: 'translateY(-50%)',
-  opacity: 0.5
-};
-
-const spinnerWrap = { display: 'flex', justifyContent: 'center', padding: 60 };
-const spinner: React.CSSProperties = {
-  width: 28,
-  height: 28,
-  border: '3px solid rgba(255,255,255,0.2)',
-  borderTop: '3px solid #22d3ee',
-  borderRadius: '50%',
-  animation: 'spin 1s linear infinite'
-};
-
-const btnPrimary = { background: '#0ea5e9', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6 };
-const btnDanger = { background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6 };
-const btnGhost = { background: 'transparent', border: '1px solid #555', padding: '6px 10px', borderRadius: 6 };
-
-const dropdown = {
-  position: 'absolute',
-  right: 0,
-  top: 30,
-  background: '#111',
-  borderRadius: 8,
-  padding: 6,
-  boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
-};
-
-const dropItem = { padding: '6px 12px', cursor: 'pointer', fontSize: 13 };
+const searchIcon = { position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' };
 
 const overlay = {
   position: 'fixed',
   inset: 0,
-  background: 'rgba(0,0,0,0.6)',
+  background: 'rgba(15,23,42,0.55)',
+  backdropFilter: 'blur(4px)',
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'center'
+  justifyContent: 'center',
+  zIndex: 50
 };
 
-const modal = { background: '#111', padding: 24, borderRadius: 12, width: 400 };
+const modal = {
+  background: '#fff',
+  padding: 28,
+  borderRadius: 16,
+  width: 520,
+  boxShadow: '0 30px 80px rgba(0,0,0,0.25)',
+  animation: 'fadeIn 0.2s ease'
+};
+
+const closeX = { border: 'none', background: 'transparent', fontSize: 18, cursor: 'pointer' };
+
+const inputStyle = {
+  width: '100%',
+  padding: '12px 14px',
+  borderRadius: 10,
+  border: '1px solid #e2e8f0',
+  marginBottom: 16
+};
+
+const btnCancel = {
+  background: '#f1f5f9',
+  border: '1px solid #e2e8f0',
+  padding: '10px 16px',
+  borderRadius: 10,
+  cursor: 'pointer'
+};
+
+const btnPrimary = {
+  background: 'linear-gradient(90deg,#06b6d4,#67e8f9)',
+  border: 'none',
+  padding: '10px 16px',
+  borderRadius: 10,
+  color: '#fff',
+  fontWeight: 600,
+  cursor: 'pointer'
+};
+
+const btnDanger = {
+  background: '#ef4444',
+  border: 'none',
+  padding: '10px 16px',
+  borderRadius: 10,
+  color: '#fff',
+  cursor: 'pointer'
+};
+
+const btnGhost = { border: '1px solid #e5e7eb', borderRadius: 8, padding: '4px 10px', background: '#fff' };
+
+const dropdown = {
+  position: 'absolute',
+  right: 0,
+  top: 36,
+  background: '#fff',
+  borderRadius: 12,
+  padding: 6,
+  boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
+  border: '1px solid #e5e7eb',
+  minWidth: 160,
+  zIndex: 20
+};
+
+const spinnerWrap = { display: 'flex', justifyContent: 'center', padding: 60 };
+const spinner = {
+  width: 28,
+  height: 28,
+  border: '3px solid #e2e8f0',
+  borderTop: '3px solid #06b6d4',
+  borderRadius: '50%',
+  animation: 'spin 1s linear infinite'
+};
 
 const toastStyle = {
   position: 'fixed',
   bottom: 20,
   right: 20,
   background: '#111',
+  color: '#fff',
   padding: '12px 16px',
   borderRadius: 8
 };
