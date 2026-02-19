@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { AdminTable } from '../../components/admin/AdminTable';
 
 interface Cliente {
   id: string;
   nome: string;
   cor_primaria: string | null;
+  logo_url: string | null;
   status: string;
   created_at: string;
 }
@@ -21,37 +21,32 @@ export default function AdminClientes() {
 
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-
-  const modalRef = useRef<HTMLDivElement>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     nome: '',
-    cor_primaria: '#0ea5e9',
-    status: 'ativo'
+    logo_url: '',
+    cor_primaria: '#00A3E0',
+    status: 'ativo',
   });
 
-  // ================= TOAST =================
   const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2500);
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 2500);
   };
 
-  // ================= FETCH =================
-  const fetch = async () => {
+  const fetchClientes = async () => {
     setLoading(true);
     const { data } = await supabase
       .from('clientes')
-      .select('id, nome, cor_primaria, status, created_at')
+      .select('id, nome, cor_primaria, logo_url, status, created_at')
       .order('created_at', { ascending: false });
-
     setClientes(data || []);
     setLoading(false);
   };
 
-  useEffect(() => { fetch(); }, []);
+  useEffect(() => { fetchClientes(); }, []);
 
-  // ESC fecha modal
   useEffect(() => {
     const esc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -64,39 +59,73 @@ export default function AdminClientes() {
     return () => window.removeEventListener('keydown', esc);
   }, []);
 
+  useEffect(() => {
+    const close = () => setMenuOpen(null);
+    window.addEventListener('click', close);
+    return () => window.removeEventListener('click', close);
+  }, []);
+
   const filtered = clientes.filter(c =>
     c.nome.toLowerCase().includes(search.toLowerCase())
   );
 
-  // ================= CRUD =================
+  // ========== CRUD ==========
   const resetForm = () => {
-    setForm({ nome: '', cor_primaria: '#0ea5e9', status: 'ativo' });
+    setForm({ nome: '', logo_url: '', cor_primaria: '#00A3E0', status: 'ativo' });
     setEditing(null);
     setOpenModal(false);
   };
 
-  const createCliente = async () => {
-    if (!form.nome.trim()) return showToast('Informe o nome');
-
+  const handleSave = async () => {
+    if (!form.nome.trim()) return showToast('Informe o nome do cliente');
     setSaving(true);
-    await supabase.from('clientes').insert(form);
-    setSaving(false);
 
+    if (editing) {
+      const { error } = await supabase
+        .from('clientes')
+        .update({
+          nome: form.nome,
+          logo_url: form.logo_url || null,
+          cor_primaria: form.cor_primaria,
+          status: form.status,
+        })
+        .eq('id', editing.id);
+      if (error) {
+        showToast('Erro ao atualizar cliente');
+      } else {
+        showToast('Cliente atualizado com sucesso!');
+      }
+    } else {
+      const { error } = await supabase
+        .from('clientes')
+        .insert({
+          nome: form.nome,
+          logo_url: form.logo_url || null,
+          cor_primaria: form.cor_primaria,
+          status: form.status,
+        });
+      if (error) {
+        showToast('Erro ao cadastrar cliente');
+      } else {
+        showToast(`Cliente "${form.nome}" cadastrado com sucesso!`);
+      }
+    }
+
+    setSaving(false);
     resetForm();
-    fetch();
-    showToast('Cliente criado');
+    fetchClientes();
   };
 
-  const updateCliente = async () => {
-    if (!editing) return;
-
-    setSaving(true);
-    await supabase.from('clientes').update(form).eq('id', editing.id);
-    setSaving(false);
-
-    resetForm();
-    fetch();
-    showToast('Cliente atualizado');
+  const openEdit = (c: Cliente) => {
+    setEditing(c);
+    setForm({
+      nome: c.nome,
+      logo_url: c.logo_url || '',
+      cor_primaria: c.cor_primaria || '#00A3E0',
+      status: c.status,
+    });
+    setOpenModal(true);
+    setMenuOpen(null);
   };
 
   const confirmDelete = (id: string) => {
@@ -106,190 +135,208 @@ export default function AdminClientes() {
 
   const deleteCliente = async () => {
     if (!deleteId) return;
-    await supabase.from('clientes').delete().eq('id', deleteId);
+    const { error } = await supabase.from('clientes').delete().eq('id', deleteId);
+    if (error) {
+      showToast('Erro ao excluir cliente');
+    } else {
+      showToast('Cliente excluído');
+    }
     setDeleteId(null);
-    fetch();
-    showToast('Cliente excluído');
+    fetchClientes();
   };
 
-  const openEdit = (c: Cliente) => {
-    setEditing(c);
-    setForm({
-      nome: c.nome,
-      cor_primaria: c.cor_primaria || '#0ea5e9',
-      status: c.status
-    });
-    setOpenModal(true);
-  };
-
-  const toggleMenu = (id: string, e: any) => {
+  const toggleMenu = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setMenuOpen(menuOpen === id ? null : id);
   };
 
-  // fecha dropdown ao clicar fora
-  useEffect(() => {
-    const close = () => setMenuOpen(null);
-    window.addEventListener('click', close);
-    return () => window.removeEventListener('click', close);
-  }, []);
-
-  // ================= TABELA =================
-  const columns = [
-    { key: 'nome', header: 'Nome do Cliente' },
-
-    {
-      key: 'cor_primaria',
-      header: 'Cor',
-      render: (v: any) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 26,
-            height: 26,
-            borderRadius: 8,
-            background: v || '#666'
-          }} />
-          <span style={{ fontFamily: 'monospace', opacity: 0.7 }}>
-            {v}
-          </span>
-        </div>
-      )
-    },
-
-    {
-      key: 'status',
-      header: 'Status',
-      render: (v: any) => (
-        <span style={{
-          background: '#dcfce7',
-          color: '#16a34a',
-          padding: '4px 10px',
-          borderRadius: 999,
-          fontSize: 12,
-          fontWeight: 600
-        }}>
-          {v === 'ativo' ? 'Ativo' : 'Inativo'}
-        </span>
-      )
-    },
-
-    {
-      key: 'created_at',
-      header: 'Criado em',
-      render: (v: any) =>
-        new Date(v).toLocaleDateString('pt-BR')
-    },
-
-    {
-      key: 'acoes',
-      header: 'Ações',
-      render: (_: any, row: Cliente) => (
-        <div style={{ position: 'relative' }}>
-          <button style={btnGhost} onClick={(e) => toggleMenu(row.id, e)}>
-            ⋯
-          </button>
-
-          {menuOpen === row.id && (
-            <div style={dropdown}>
-              <MenuItem label="👁 Visualizar" onClick={() => showToast(row.nome)} />
-              <MenuItem label="✏️ Editar" onClick={() => openEdit(row)} />
-              <MenuItem
-                label="🗑 Excluir"
-                danger
-                onClick={() => confirmDelete(row.id)}
-              />
-            </div>
-          )}
-        </div>
-      )
-    }
-  ];
+  // ========== ICONS (inline SVG to match insight-canvas Lucide icons) ==========
+  const PlusIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  );
+  const SearchIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+  );
+  const MoreIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+  );
+  const EyeIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+  );
+  const PencilIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+  );
+  const TrashIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
       {/* HEADER */}
-      <div style={header}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={title}>Clientes</h1>
-          <p style={subtitle}>Gerencie os tenants da plataforma</p>
+          <h1 style={{ fontSize: 30, fontWeight: 700, margin: 0, marginBottom: 4 }}>Clientes</h1>
+          <p style={{ margin: 0, opacity: 0.6, fontSize: 14 }}>Gerencie os tenants da plataforma</p>
         </div>
-
-        <button style={heroButton} onClick={() => setOpenModal(true)}>
-          ＋ Novo Cliente
+        <button onClick={() => setOpenModal(true)} style={heroBtn}>
+          <PlusIcon /> Novo Cliente
         </button>
       </div>
 
-      {/* BUSCA */}
+      {/* SEARCH */}
       <div style={{ position: 'relative', maxWidth: 420 }}>
-        <span style={searchIcon}>🔍</span>
+        <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', display: 'flex' }}>
+          <SearchIcon />
+        </span>
         <input
           placeholder="Buscar clientes..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          style={searchInput}
+          style={{
+            width: '100%', padding: '10px 16px 10px 42px', borderRadius: 10,
+            border: '1px solid hsla(210,40%,98%,0.12)', background: 'hsla(210,40%,98%,0.04)',
+            color: 'inherit', fontSize: 14, outline: 'none',
+          }}
         />
       </div>
 
-      {/* TABELA */}
+      {/* TABLE */}
       {loading ? (
-        <div style={spinnerWrap}><div style={spinner} /></div>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
+          <div style={{
+            width: 28, height: 28, border: '3px solid hsla(210,40%,98%,0.12)',
+            borderTop: '3px solid #06b6d4', borderRadius: '50%', animation: 'spin 1s linear infinite',
+          }} />
+        </div>
       ) : (
-        <AdminTable columns={columns} data={filtered} />
+        <div style={{ borderRadius: 12, border: '1px solid hsla(210,40%,98%,0.08)', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: 'hsla(210,40%,98%,0.04)' }}>
+                {['Nome do Cliente', 'Cor', 'Status', 'Criado em', 'Ações'].map(h => (
+                  <th key={h} style={{
+                    padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600,
+                    color: 'hsla(210,40%,98%,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em',
+                    borderBottom: '1px solid hsla(210,40%,98%,0.08)',
+                  }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: 'center', padding: 48, color: 'hsla(210,40%,98%,0.4)' }}>
+                    Nenhum registro encontrado
+                  </td>
+                </tr>
+              ) : filtered.map((c) => (
+                <tr key={c.id} style={{ borderBottom: '1px solid hsla(210,40%,98%,0.05)' }}>
+                  <td style={cellStyle}>{c.nome}</td>
+                  <td style={cellStyle}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{
+                        width: 24, height: 24, borderRadius: 6,
+                        background: c.cor_primaria || '#666',
+                        border: '1px solid hsla(210,40%,98%,0.15)',
+                      }} />
+                      <span style={{ fontFamily: 'monospace', fontSize: 13, opacity: 0.7 }}>
+                        {c.cor_primaria || '—'}
+                      </span>
+                    </div>
+                  </td>
+                  <td style={cellStyle}>
+                    <span style={{
+                      padding: '4px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600,
+                      background: c.status === 'ativo' ? 'rgba(34,197,94,0.15)' : 'rgba(148,163,184,0.15)',
+                      color: c.status === 'ativo' ? '#22c55e' : '#94a3b8',
+                    }}>
+                      {c.status === 'ativo' ? 'Ativo' : 'Inativo'}
+                    </span>
+                  </td>
+                  <td style={cellStyle}>
+                    {new Date(c.created_at).toLocaleDateString('pt-BR')}
+                  </td>
+                  <td style={{ ...cellStyle, position: 'relative' }}>
+                    <button onClick={(e) => toggleMenu(c.id, e)} style={ghostBtn}>
+                      <MoreIcon />
+                    </button>
+
+                    {menuOpen === c.id && (
+                      <div style={dropdownStyle}>
+                        <DropdownItem icon={<EyeIcon />} label="Visualizar" onClick={() => { showToast(`Visualizando: ${c.nome}`); setMenuOpen(null); }} />
+                        <DropdownItem icon={<PencilIcon />} label="Editar" onClick={() => openEdit(c)} />
+                        <DropdownItem icon={<TrashIcon />} label="Excluir" danger onClick={() => confirmDelete(c.id)} />
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
-      {/* MODAL CREATE/EDIT */}
+      {/* MODAL CREATE / EDIT */}
       {openModal && (
-        <div style={overlay} onClick={() => setOpenModal(false)}>
-          <div
-            ref={modalRef}
-            style={modal}
-            onClick={e => e.stopPropagation()}
-          >
-            {/* HEADER */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div style={overlay} onClick={() => resetForm()}>
+          <div style={modalBox} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
               <div>
-                <h3 style={{ fontSize: 22, fontWeight: 700 }}>
+                <h3 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>
                   {editing ? 'Editar Cliente' : 'Novo Cliente'}
                 </h3>
-                <p style={{ fontSize: 13, color: '#64748b' }}>
-                  Cadastre um novo cliente (tenant) na plataforma.
+                <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>
+                  {editing ? 'Edite as informações do cliente.' : 'Cadastre um novo cliente (tenant) na plataforma.'}
                 </p>
               </div>
-
-              <button onClick={resetForm} style={closeX}>✕</button>
+              <button onClick={resetForm} style={{ border: 'none', background: 'transparent', fontSize: 20, cursor: 'pointer', color: '#94a3b8', padding: 4 }}>✕</button>
             </div>
 
-            <label>Nome do Cliente *</label>
+            <label style={labelStyle}>Nome do Cliente *</label>
             <input
               value={form.nome}
               onChange={e => setForm({ ...form, nome: e.target.value })}
+              placeholder="Ex: Empresa ABC"
               style={inputStyle}
             />
 
-            <label>Cor Principal</label>
+            <label style={labelStyle}>Logo (URL)</label>
             <input
-              type="color"
-              value={form.cor_primaria}
-              onChange={e => setForm({ ...form, cor_primaria: e.target.value })}
+              value={form.logo_url}
+              onChange={e => setForm({ ...form, logo_url: e.target.value })}
+              placeholder="https://exemplo.com/logo.png"
+              style={inputStyle}
             />
 
-            <label>Status</label>
+            <label style={labelStyle}>Cor Principal</label>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+              <input
+                type="color"
+                value={form.cor_primaria}
+                onChange={e => setForm({ ...form, cor_primaria: e.target.value })}
+                style={{ width: 48, height: 40, padding: 2, borderRadius: 8, border: '1px solid #334155', cursor: 'pointer', background: 'transparent' }}
+              />
+              <input
+                value={form.cor_primaria}
+                onChange={e => setForm({ ...form, cor_primaria: e.target.value })}
+                placeholder="#00A3E0"
+                style={{ ...inputStyle, marginBottom: 0, flex: 1, fontFamily: 'monospace' }}
+              />
+            </div>
+
+            <label style={labelStyle}>Status</label>
             <select
               value={form.status}
               onChange={e => setForm({ ...form, status: e.target.value })}
-              style={inputStyle}
+              style={{ ...inputStyle, cursor: 'pointer' }}
             >
               <option value="ativo">Ativo</option>
               <option value="inativo">Inativo</option>
             </select>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button style={btnCancel} onClick={resetForm}>Cancelar</button>
-              <button
-                style={btnPrimary}
-                disabled={saving}
-                onClick={editing ? updateCliente : createCliente}
-              >
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+              <button onClick={resetForm} style={cancelBtn}>Cancelar</button>
+              <button onClick={handleSave} disabled={saving} style={heroBtn}>
                 {saving ? 'Salvando...' : editing ? 'Salvar' : 'Cadastrar Cliente'}
               </button>
             </div>
@@ -297,160 +344,111 @@ export default function AdminClientes() {
         </div>
       )}
 
-      {/* DELETE MODAL */}
+      {/* DELETE CONFIRM */}
       {deleteId && (
         <div style={overlay} onClick={() => setDeleteId(null)}>
-          <div style={modal} onClick={e => e.stopPropagation()}>
-            <h3>Excluir cliente?</h3>
-            <p style={{ color: '#64748b' }}>
-              Essa ação não pode ser desfeita.
+          <div style={modalBox} onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px' }}>Excluir cliente?</h3>
+            <p style={{ color: '#64748b', margin: '0 0 20px', fontSize: 14 }}>
+              Essa ação não pode ser desfeita. Todos os dados deste cliente serão removidos.
             </p>
-
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button style={btnCancel} onClick={() => setDeleteId(null)}>Cancelar</button>
-              <button style={btnDanger} onClick={deleteCliente}>Excluir</button>
+              <button onClick={() => setDeleteId(null)} style={cancelBtn}>Cancelar</button>
+              <button onClick={deleteCliente} style={dangerBtn}>Excluir</button>
             </div>
           </div>
         </div>
       )}
 
-      {toast && <div style={toastStyle}>{toast}</div>}
+      {/* TOAST */}
+      {toastMsg && (
+        <div style={{
+          position: 'fixed', bottom: 24, right: 24,
+          background: '#0f172a', color: '#f8fafc', padding: '12px 20px',
+          borderRadius: 10, fontSize: 14, boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+          zIndex: 100, border: '1px solid hsla(210,40%,98%,0.1)',
+        }}>
+          {toastMsg}
+        </div>
+      )}
     </div>
   );
 }
 
-// ================= COMPONENTES =================
-const MenuItem = ({ label, onClick, danger }: any) => (
-  <div
-    onClick={onClick}
-    style={{
-      padding: '8px 12px',
-      cursor: 'pointer',
-      borderRadius: 8,
-      fontSize: 14,
-      color: danger ? '#ef4444' : '#111'
-    }}
-    onMouseEnter={e =>
-      (e.currentTarget.style.background = danger ? '#fef2f2' : '#f1f5f9')
-    }
-    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-  >
-    {label}
-  </div>
-);
+// ========== DropdownItem ==========
+function DropdownItem({ icon, label, onClick, danger }: { icon: React.ReactNode; label: string; onClick: () => void; danger?: boolean }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '8px 12px', cursor: 'pointer', borderRadius: 6, fontSize: 14,
+        color: danger ? '#ef4444' : 'inherit',
+        background: hovered ? (danger ? 'rgba(239,68,68,0.1)' : 'hsla(210,40%,98%,0.06)') : 'transparent',
+        transition: 'background 0.15s',
+      }}
+    >
+      {icon}
+      {label}
+    </div>
+  );
+}
 
-// ================= STYLES =================
-const header = { display: 'flex', justifyContent: 'space-between' };
-const title = { fontSize: 32, fontWeight: 800 };
-const subtitle = { opacity: 0.6 };
+// ========== STYLES ==========
+const cellStyle: React.CSSProperties = { padding: '12px 16px', fontSize: 14, color: 'hsla(210,40%,98%,0.8)' };
 
-const heroButton = {
-  background: 'linear-gradient(90deg,#06b6d4,#67e8f9)',
-  border: 'none',
-  padding: '10px 18px',
-  borderRadius: 12,
-  color: '#fff',
-  fontWeight: 600,
-  cursor: 'pointer',
-  boxShadow: '0 8px 20px rgba(0,0,0,0.15)'
+const heroBtn: React.CSSProperties = {
+  background: 'linear-gradient(90deg, #06b6d4, #67e8f9)',
+  border: 'none', padding: '10px 18px', borderRadius: 10,
+  color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 14,
+  display: 'inline-flex', alignItems: 'center', gap: 8,
+  boxShadow: '0 4px 14px rgba(6,182,212,0.3)',
+  transition: 'opacity 0.2s, transform 0.2s',
 };
 
-const searchInput = {
-  width: '100%',
-  padding: '12px 16px 12px 38px',
-  borderRadius: 10,
-  border: '1px solid #e2e8f0'
-};
-const searchIcon = { position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' };
-
-const overlay = {
-  position: 'fixed',
-  inset: 0,
-  background: 'rgba(15,23,42,0.55)',
-  backdropFilter: 'blur(4px)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  zIndex: 50
+const ghostBtn: React.CSSProperties = {
+  border: '1px solid hsla(210,40%,98%,0.12)', borderRadius: 8,
+  padding: '6px 10px', background: 'transparent', cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center', color: 'inherit',
 };
 
-const modal = {
-  background: '#fff',
-  padding: 28,
-  borderRadius: 16,
-  width: 520,
-  boxShadow: '0 30px 80px rgba(0,0,0,0.25)',
-  animation: 'fadeIn 0.2s ease'
+const dropdownStyle: React.CSSProperties = {
+  position: 'absolute', right: 0, top: 38, background: '#1e293b',
+  borderRadius: 10, padding: 4, minWidth: 170, zIndex: 30,
+  boxShadow: '0 20px 50px rgba(0,0,0,0.4)', border: '1px solid hsla(210,40%,98%,0.1)',
 };
 
-const closeX = { border: 'none', background: 'transparent', fontSize: 18, cursor: 'pointer' };
-
-const inputStyle = {
-  width: '100%',
-  padding: '12px 14px',
-  borderRadius: 10,
-  border: '1px solid #e2e8f0',
-  marginBottom: 16
+const overlay: React.CSSProperties = {
+  position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)',
+  backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center',
+  justifyContent: 'center', zIndex: 50,
 };
 
-const btnCancel = {
-  background: '#f1f5f9',
-  border: '1px solid #e2e8f0',
-  padding: '10px 16px',
-  borderRadius: 10,
-  cursor: 'pointer'
+const modalBox: React.CSSProperties = {
+  background: '#1e293b', padding: 28, borderRadius: 16, width: 500,
+  boxShadow: '0 30px 80px rgba(0,0,0,0.4)', border: '1px solid hsla(210,40%,98%,0.08)',
+  color: '#f8fafc',
 };
 
-const btnPrimary = {
-  background: 'linear-gradient(90deg,#06b6d4,#67e8f9)',
-  border: 'none',
-  padding: '10px 16px',
-  borderRadius: 10,
-  color: '#fff',
-  fontWeight: 600,
-  cursor: 'pointer'
+const labelStyle: React.CSSProperties = {
+  display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#94a3b8',
 };
 
-const btnDanger = {
-  background: '#ef4444',
-  border: 'none',
-  padding: '10px 16px',
-  borderRadius: 10,
-  color: '#fff',
-  cursor: 'pointer'
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '10px 14px', borderRadius: 8,
+  border: '1px solid hsla(210,40%,98%,0.12)', background: 'hsla(210,40%,98%,0.04)',
+  color: '#f8fafc', fontSize: 14, marginBottom: 16, outline: 'none',
 };
 
-const btnGhost = { border: '1px solid #e5e7eb', borderRadius: 8, padding: '4px 10px', background: '#fff' };
-
-const dropdown = {
-  position: 'absolute',
-  right: 0,
-  top: 36,
-  background: '#fff',
-  borderRadius: 12,
-  padding: 6,
-  boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
-  border: '1px solid #e5e7eb',
-  minWidth: 160,
-  zIndex: 20
+const cancelBtn: React.CSSProperties = {
+  background: 'hsla(210,40%,98%,0.06)', border: '1px solid hsla(210,40%,98%,0.12)',
+  padding: '10px 16px', borderRadius: 10, cursor: 'pointer', color: '#f8fafc', fontSize: 14,
 };
 
-const spinnerWrap = { display: 'flex', justifyContent: 'center', padding: 60 };
-const spinner = {
-  width: 28,
-  height: 28,
-  border: '3px solid #e2e8f0',
-  borderTop: '3px solid #06b6d4',
-  borderRadius: '50%',
-  animation: 'spin 1s linear infinite'
-};
-
-const toastStyle = {
-  position: 'fixed',
-  bottom: 20,
-  right: 20,
-  background: '#111',
-  color: '#fff',
-  padding: '12px 16px',
-  borderRadius: 8
+const dangerBtn: React.CSSProperties = {
+  background: '#ef4444', border: 'none', padding: '10px 16px',
+  borderRadius: 10, color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: 14,
 };
