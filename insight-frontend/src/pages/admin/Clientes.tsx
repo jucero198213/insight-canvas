@@ -75,10 +75,7 @@ export default function AdminClientes() {
     if (!editing) return;
 
     setSaving(true);
-    await supabase
-      .from('clientes')
-      .update(form)
-      .eq('id', editing.id);
+    await supabase.from('clientes').update(form).eq('id', editing.id);
     setSaving(false);
 
     resetForm();
@@ -115,21 +112,24 @@ export default function AdminClientes() {
     setMenuOpen(menuOpen === id ? null : id);
   };
 
+  // ================= TABELA =================
+
   const columns = [
-    { key: 'nome', header: 'Nome' },
+    { key: 'nome', header: 'Nome do Cliente' },
 
     {
       key: 'cor_primaria',
       header: 'Cor',
       render: (v: any) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
-            width: 20,
-            height: 20,
-            borderRadius: 4,
-            background: v || '#666'
+            width: 24,
+            height: 24,
+            borderRadius: 6,
+            background: v || '#666',
+            border: '1px solid rgba(255,255,255,0.1)'
           }} />
-          <span style={{ fontSize: 12, fontFamily: 'monospace' }}>
+          <span style={{ fontSize: 12, fontFamily: 'monospace', opacity: 0.8 }}>
             {v || '-'}
           </span>
         </div>
@@ -141,16 +141,16 @@ export default function AdminClientes() {
       header: 'Status',
       render: (v: any) => (
         <span style={{
-          padding: '4px 12px',
+          padding: '6px 12px',
           borderRadius: 999,
           fontSize: 12,
-          fontWeight: 500,
+          fontWeight: 600,
           background: v === 'ativo'
-            ? 'hsla(142,71%,45%,0.1)'
-            : 'hsla(210,40%,98%,0.05)',
+            ? 'rgba(34,197,94,0.12)'
+            : 'rgba(255,255,255,0.05)',
           color: v === 'ativo'
-            ? 'hsl(142 71% 45%)'
-            : 'hsla(210,40%,98%,0.5)'
+            ? '#22c55e'
+            : 'rgba(255,255,255,0.5)'
         }}>
           {v === 'ativo' ? 'Ativo' : 'Inativo'}
         </span>
@@ -166,7 +166,7 @@ export default function AdminClientes() {
 
     {
       key: 'acoes',
-      header: 'Ações',
+      header: '',
       render: (_: any, row: Cliente) => (
         <div style={{ position: 'relative' }}>
           <button style={btnGhost} onClick={(e) => toggleMenu(row.id, e)}>
@@ -175,7 +175,7 @@ export default function AdminClientes() {
 
           {menuOpen === row.id && (
             <div style={dropdown}>
-              <div style={dropItem} onClick={() => showToast(JSON.stringify(row, null, 2))}>
+              <div style={dropItem} onClick={() => showToast(row.nome)}>
                 👁 Visualizar
               </div>
               <div style={dropItem} onClick={() => openEdit(row)}>
@@ -195,32 +195,40 @@ export default function AdminClientes() {
   ];
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+
       {/* HEADER */}
       <div style={header}>
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 700 }}>Clientes</h1>
-          <p style={{ opacity: 0.6 }}>Gerencie os tenants da plataforma</p>
+          <h1 style={title}>Clientes</h1>
+          <p style={subtitle}>Gerencie os tenants da plataforma</p>
         </div>
 
-        <button style={btnGradient} onClick={() => setOpenModal(true)}>
-          + Novo Cliente
+        <button style={heroButton} onClick={() => setOpenModal(true)}>
+          <span style={{ fontSize: 18 }}>＋</span>
+          Novo Cliente
         </button>
       </div>
 
-      {/* BUSCA */}
-      <input
-        placeholder="Buscar clientes..."
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        style={inputStyle}
-      />
+      {/* BUSCA COM ÍCONE */}
+      <div style={{ position: 'relative', maxWidth: 420 }}>
+        <span style={searchIcon}>🔍</span>
+        <input
+          placeholder="Buscar clientes..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={searchInput}
+        />
+      </div>
 
       {/* TABELA */}
-      {loading
-        ? <p style={{ padding: 48, textAlign: 'center' }}>Carregando...</p>
-        : <AdminTable columns={columns} data={filtered} />
-      }
+      {loading ? (
+        <div style={spinnerWrap}>
+          <div style={spinner} />
+        </div>
+      ) : (
+        <AdminTable columns={columns} data={filtered} />
+      )}
 
       {/* MODAL CREATE/EDIT */}
       {openModal && (
@@ -284,104 +292,88 @@ export default function AdminClientes() {
         </div>
       )}
 
-      {/* TOAST */}
       {toast && <div style={toastStyle}>{toast}</div>}
     </div>
   );
 }
 
-// ================= STYLES =================
+// ================= VISUAL STYLES =================
 
-const header: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: 24
-};
+const header = { display: 'flex', justifyContent: 'space-between', alignItems: 'center' };
+const title = { fontSize: 32, fontWeight: 800 };
+const subtitle = { opacity: 0.6, marginTop: 4 };
 
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  maxWidth: 400,
-  padding: '10px 16px',
-  borderRadius: 8,
-  marginBottom: 16
-};
-
-const btnGradient: React.CSSProperties = {
+const heroButton: React.CSSProperties = {
   background: 'linear-gradient(90deg,#06b6d4,#22d3ee)',
   border: 'none',
-  padding: '10px 16px',
-  borderRadius: 8,
+  padding: '10px 18px',
+  borderRadius: 10,
   color: '#fff',
-  cursor: 'pointer'
-};
-
-const btnPrimary: React.CSSProperties = {
-  background: '#0ea5e9',
-  color: '#fff',
-  border: 'none',
-  padding: '6px 12px',
-  borderRadius: 6,
-  cursor: 'pointer'
-};
-
-const btnDanger: React.CSSProperties = {
-  background: '#ef4444',
-  color: '#fff',
-  border: 'none',
-  padding: '6px 12px',
-  borderRadius: 6,
-  cursor: 'pointer'
-};
-
-const btnGhost: React.CSSProperties = {
-  background: 'transparent',
-  border: '1px solid #555',
-  padding: '6px 10px',
-  borderRadius: 6,
-  cursor: 'pointer'
-};
-
-const overlay: React.CSSProperties = {
-  position: 'fixed',
-  inset: 0,
-  background: 'rgba(0,0,0,0.6)',
+  fontWeight: 600,
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'center',
-  zIndex: 50
+  gap: 8,
+  cursor: 'pointer'
 };
 
-const modal: React.CSSProperties = {
-  background: '#111',
-  padding: 24,
-  borderRadius: 12,
-  width: 400
+const searchInput: React.CSSProperties = {
+  width: '100%',
+  padding: '12px 16px 12px 38px',
+  borderRadius: 10,
+  border: '1px solid rgba(255,255,255,0.1)',
+  background: 'rgba(255,255,255,0.05)'
 };
 
-const dropdown: React.CSSProperties = {
+const searchIcon: React.CSSProperties = {
+  position: 'absolute',
+  left: 12,
+  top: '50%',
+  transform: 'translateY(-50%)',
+  opacity: 0.5
+};
+
+const spinnerWrap = { display: 'flex', justifyContent: 'center', padding: 60 };
+const spinner: React.CSSProperties = {
+  width: 28,
+  height: 28,
+  border: '3px solid rgba(255,255,255,0.2)',
+  borderTop: '3px solid #22d3ee',
+  borderRadius: '50%',
+  animation: 'spin 1s linear infinite'
+};
+
+const btnPrimary = { background: '#0ea5e9', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6 };
+const btnDanger = { background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6 };
+const btnGhost = { background: 'transparent', border: '1px solid #555', padding: '6px 10px', borderRadius: 6 };
+
+const dropdown = {
   position: 'absolute',
   right: 0,
   top: 30,
   background: '#111',
   borderRadius: 8,
   padding: 6,
-  boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-  zIndex: 10
+  boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
 };
 
-const dropItem: React.CSSProperties = {
-  padding: '6px 12px',
-  cursor: 'pointer',
-  fontSize: 13
+const dropItem = { padding: '6px 12px', cursor: 'pointer', fontSize: 13 };
+
+const overlay = {
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(0,0,0,0.6)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center'
 };
 
-const toastStyle: React.CSSProperties = {
+const modal = { background: '#111', padding: 24, borderRadius: 12, width: 400 };
+
+const toastStyle = {
   position: 'fixed',
   bottom: 20,
   right: 20,
   background: '#111',
   padding: '12px 16px',
-  borderRadius: 8,
-  boxShadow: '0 10px 30px rgba(0,0,0,0.6)'
+  borderRadius: 8
 };
