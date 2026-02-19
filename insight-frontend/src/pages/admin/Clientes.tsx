@@ -209,7 +209,7 @@ export default function AdminClientes() {
           }} />
         </div>
       ) : (
-        <div style={{ borderRadius: 12, border: '1px solid hsla(210,40%,98%,0.08)', overflow: 'hidden' }}>
+        <div style={{ borderRadius: 12, border: '1px solid hsla(210,40%,98%,0.08)', overflow: 'visible' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: 'hsla(210,40%,98%,0.04)' }}>
@@ -256,7 +256,7 @@ export default function AdminClientes() {
                   <td style={cellStyle}>
                     {new Date(c.created_at).toLocaleDateString('pt-BR')}
                   </td>
-                  <td style={{ ...cellStyle, position: 'relative' }}>
+                  <td style={{ ...cellStyle, position: 'relative', overflow: 'visible' }}>
                     <button onClick={(e) => toggleMenu(c.id, e)} style={ghostBtn}>
                       <MoreIcon />
                     </button>
