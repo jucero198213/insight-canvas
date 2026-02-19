@@ -345,14 +345,15 @@ const title = { fontSize: 32, fontWeight: 800 };
 const subtitle = { opacity: 0.6 };
 
 const heroButton = {
-  background: 'linear-gradient(90deg,#06b6d4,#67e8f9)',
-  border: 'none',
-  padding: '10px 18px',
-  borderRadius: 12,
-  color: '#fff',
-  fontWeight: 600,
+  background: 'rgba(56,189,248,0.15)',
+  color: '#38bdf8',
+  border: '1px solid rgba(56,189,248,0.35)',
+  padding: '9px 16px',
+  borderRadius: 10,
+  fontWeight: 500,
   cursor: 'pointer',
-  boxShadow: '0 8px 20px rgba(0,0,0,0.15)'
+  backdropFilter: 'blur(6px)',
+  transition: 'all 0.15s ease'
 };
 
 const searchInput = {
