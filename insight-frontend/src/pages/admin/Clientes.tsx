@@ -53,10 +53,12 @@ export default function AdminClientes() {
     setSaving(true);
     if (editing) {
       const { error } = await supabase.from('clientes').update(form).eq('id', editing.id);
-      showToast(error ? 'Erro ao atualizar' : 'Cliente atualizado');
+      if (error) { console.error('Erro update clientes:', error); showToast('Erro ao atualizar: ' + error.message); }
+      else showToast('Cliente atualizado');
     } else {
       const { error } = await supabase.from('clientes').insert(form);
-      showToast(error ? 'Erro ao cadastrar' : 'Cliente criado');
+      if (error) { console.error('Erro insert clientes:', error); showToast('Erro ao cadastrar: ' + error.message); }
+      else showToast('Cliente criado');
     }
     setSaving(false);
     resetForm();
@@ -66,7 +68,8 @@ export default function AdminClientes() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     const { error } = await supabase.from('clientes').delete().eq('id', deleteTarget.id);
-    showToast(error ? 'Erro ao excluir' : 'Cliente excluído');
+    if (error) { console.error('Erro delete clientes:', error); showToast('Erro ao excluir: ' + error.message); }
+    else showToast('Cliente excluído');
     setDeleteTarget(null);
     fetchData();
   };

@@ -70,7 +70,8 @@ export default function AdminPermissoes() {
     if (!form.usuario_id || !form.relatorio_id) return showToast('Selecione usuário e relatório');
     setSaving(true);
     const { error } = await supabase.from('permissoes').insert({ usuario_id: form.usuario_id, relatorio_id: form.relatorio_id });
-    showToast(error ? 'Erro ao cadastrar permissão' : 'Permissão criada');
+    if (error) { console.error('Erro insert permissoes:', error); showToast('Erro: ' + error.message); }
+    else showToast('Permissão criada');
     setSaving(false);
     resetForm();
     fetchData();
@@ -79,7 +80,8 @@ export default function AdminPermissoes() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     const { error } = await supabase.from('permissoes').delete().eq('id', deleteTarget.id);
-    showToast(error ? 'Erro ao excluir' : 'Permissão excluída');
+    if (error) { console.error('Erro delete permissoes:', error); showToast('Erro: ' + error.message); }
+    else showToast('Permissão excluída');
     setDeleteTarget(null);
     fetchData();
   };

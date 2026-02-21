@@ -72,10 +72,12 @@ export default function AdminRelatorios() {
     };
     if (editing) {
       const { error } = await supabase.from('relatorios').update(payload).eq('id', editing.id);
-      showToast(error ? 'Erro ao atualizar' : 'Relatório atualizado');
+      if (error) { console.error('Erro update relatorios:', error); showToast('Erro ao atualizar: ' + error.message); }
+      else showToast('Relatório atualizado');
     } else {
       const { error } = await supabase.from('relatorios').insert(payload);
-      showToast(error ? 'Erro ao cadastrar' : 'Relatório criado');
+      if (error) { console.error('Erro insert relatorios:', error); showToast('Erro ao cadastrar: ' + error.message); }
+      else showToast('Relatório criado');
     }
     setSaving(false);
     resetForm();
@@ -85,7 +87,8 @@ export default function AdminRelatorios() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     const { error } = await supabase.from('relatorios').delete().eq('id', deleteTarget.id);
-    showToast(error ? 'Erro ao excluir' : 'Relatório excluído');
+    if (error) { console.error('Erro delete relatorios:', error); showToast('Erro ao excluir: ' + error.message); }
+    else showToast('Relatório excluído');
     setDeleteTarget(null);
     fetchData();
   };
