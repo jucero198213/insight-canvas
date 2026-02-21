@@ -70,10 +70,20 @@ export default function AdminUsuarios() {
     setSaving(true);
     if (editing) {
       const { error } = await supabase.from('usuarios').update({ nome: form.nome, email: form.email, cliente_id: form.cliente_id, status: form.status }).eq('id', editing.id);
-      showToast(error ? 'Erro ao atualizar' : 'Usuário atualizado');
+      if (error) { console.error('Erro update usuarios:', error); showToast('Erro ao atualizar: ' + error.message); }
+      else showToast('Usuário atualizado');
     } else {
-      const { error } = await supabase.from('usuarios').insert({ nome: form.nome, email: form.email, cliente_id: form.cliente_id, status: form.status, auth_user_id: crypto.randomUUID() });
-      showToast(error ? 'Erro ao cadastrar' : 'Usuário criado');
+      // Create auth user first via edge function, or insert with placeholder auth_user_id
+      const { data: authData, error: authError } = await supabase.functions.invoke('manage-users', {
+        body: { action: 'create', email: form.email, nome: form.nome, cliente_id: form.cliente_id, status: form.status },
+      });
+      if (authError || authData?.error) {
+        const msg = authData?.error || authError?.message || 'Erro desconhecido';
+        console.error('Erro create usuario:', msg);
+        showToast('Erro ao cadastrar: ' + msg);
+      } else {
+        showToast('Usuário criado');
+      }
     }
     setSaving(false);
     resetForm();
@@ -82,8 +92,16 @@ export default function AdminUsuarios() {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    const { error } = await supabase.from('usuarios').delete().eq('id', deleteTarget.id);
-    showToast(error ? 'Erro ao excluir' : 'Usuário excluído');
+    const { data, error } = await supabase.functions.invoke('manage-users', {
+      body: { action: 'delete', usuario_id: deleteTarget.id },
+    });
+    if (error || data?.error) {
+      const msg = data?.error || error?.message || 'Erro desconhecido';
+      console.error('Erro delete usuario:', msg);
+      showToast('Erro ao excluir: ' + msg);
+    } else {
+      showToast('Usuário excluído');
+    }
     setDeleteTarget(null);
     fetchData();
   };
